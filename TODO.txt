@@ -1,1 +1,2 @@
 - Get rid of our names from the top of the files
+- Verify data length and total length calculation
