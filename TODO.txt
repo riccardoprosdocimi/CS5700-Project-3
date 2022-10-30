@@ -1,2 +1,4 @@
 - Get rid of our names from the top of the files
 - Verify data length and total length calculation
+- Might need ret_addr from sock.recvfrom
+- Consolidate all the struct.unpack calls into one format string

@@ -10,6 +10,6 @@ sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ip_proto)
 
 def start():
     while True:
-        raw_pkt = sock.recvfrom(4096)[0]
+        raw_pkt, _ = sock.recvfrom(4096)
         ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
         print(ip_pkt)
