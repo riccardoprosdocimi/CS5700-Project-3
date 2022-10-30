@@ -17,7 +17,7 @@ class IPHeader:
         self.checksum = checksum
         self.destination = socket.gethostbyname(destination)
         self.source = socket.gethostbyname(socket.gethostname())
-        self.raw = None
+        self.packet = None
         self.create_fields()
 
     def create_fields(self):
@@ -32,8 +32,8 @@ class IPHeader:
 
         return
 
-    def package_fields(self):
-        self.raw = struct.pack(
+    def pack_fields(self):
+        self.packet = struct.pack(
             '!BBBHHHHBBH4s4s',
             self.version,
             self.header_length,
@@ -48,7 +48,7 @@ class IPHeader:
             self.source,
             self.destination
         )
-        return self.raw
+        return self.packet
 
     def csum(self, sent_message, nbytes):
         """
@@ -59,14 +59,14 @@ class IPHeader:
         :return:
         """
 
-        checksum = 0
+        self.checksum = 0
         while nbytes > 1:
-            checksum += sent_message
+            self.checksum += sent_message
             nbytes -= 2
         if nbytes == 1:
             oddbyte = sent_message
-            checksum += oddbyte
-        checksum = (checksum >> 16) + (checksum & 0xffff)
-        checksum = checksum + (checksum >> 16)
-        checksum = ~checksum
-        return checksum
+            self.checksum += oddbyte
+        self.checksum = (self.checksum >> 16) + (self.checksum & 0xffff)
+        self.checksum = self.checksum + (self.checksum >> 16)
+        self.checksum = ~self.checksum
+        return self.checksum
