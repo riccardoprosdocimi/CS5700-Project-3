@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
-from IP import IPPacket, PROTOCOLS_TO_CAPTURE
+from IP import IPPacket
 import socket
+
+from TCP import TCPPacket
 
 
 def main():
@@ -12,8 +14,9 @@ def main():
         raw_pkt, _ = sock.recvfrom(4096)
         ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
 
-        if ip_pkt.protocol in PROTOCOLS_TO_CAPTURE:
-            print(ip_pkt.source, ip_pkt.destination)
+        if ip_pkt.protocol == socket.IPPROTO_TCP:
+            tcp_pkt = TCPPacket.from_bytes(ip_pkt, raw_tcp_pkt=ip_pkt.data)
+            print(tcp_pkt)
 
 
 if __name__ == "__main__":

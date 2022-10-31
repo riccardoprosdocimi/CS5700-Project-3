@@ -6,10 +6,10 @@ import struct
 class IPPacket:
     def __init__(
         self,
-        destination,
+        dst,
         data,
         mode="send",
-        source=socket.gethostbyname(socket.gethostname()),
+        src=socket.gethostbyname(socket.gethostname()),
         checksum=0,
     ):
         self.version = 4
@@ -22,11 +22,12 @@ class IPPacket:
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
+        self.src = src
         if mode == "receive":
-            self.destination = destination
+            self.dst = dst
         else:
-            self.destination = socket.gethostbyname(destination)
-        self.source = source
+            self.dst = socket.gethostbyname(dst)
+        self.data = data
         self.packet = None
         self.create_fields()
 
@@ -60,8 +61,8 @@ class IPPacket:
             self.ttl,
             self.protocol,
             self.checksum,
-            self.source,
-            self.destination,
+            self.src,
+            self.dst,
         )
         return self.packet
 
@@ -89,11 +90,10 @@ class IPPacket:
     def from_bytes(raw_pkt):
         raw_ip_header = raw_pkt[14:35]
         total_length_raw = raw_ip_header[2:4]
-        (total_length,) = struct.unpack("!h", total_length_raw)
-        data = raw_pkt[35 : 35 + total_length - 20]  # header length = 20
-
+        (total_length,) = struct.unpack("!H", total_length_raw)
+        data = raw_pkt[35:]
         pkt_id_raw = raw_ip_header[4:6]
-        (pkt_id,) = struct.unpack("!h", pkt_id_raw)
+        (pkt_id,) = struct.unpack("!H", pkt_id_raw)
 
         ttl_raw = raw_ip_header[8:9]
         (ttl,) = struct.unpack("!c", ttl_raw)
@@ -104,7 +104,7 @@ class IPPacket:
         protocol = int(hexlify(protocol), base=16)
 
         checksum_raw = raw_ip_header[10:12]
-        (checksum,) = struct.unpack("!h", checksum_raw)
+        (checksum,) = struct.unpack("!H", checksum_raw)
 
         src_ip_raw = raw_ip_header[12:16]
         src_ip = socket.inet_ntoa(src_ip_raw)
@@ -112,13 +112,16 @@ class IPPacket:
         dst_ip_raw = raw_ip_header[16:20]
         dst_ip = socket.inet_ntoa(dst_ip_raw)
 
-        ip_packet = IPPacket(src_ip, dst_ip, data)
+        ip_packet = IPPacket(
+            dst=dst_ip,
+            data=data,
+            mode="receive",
+            src=src_ip,
+            checksum=checksum,
+        )
         ip_packet.id = pkt_id
         ip_packet.ttl = ttl
         ip_packet.protocol = protocol
         ip_packet.checksum = checksum
 
         return ip_packet
-
-
-PROTOCOLS_TO_CAPTURE = (socket.IPPROTO_TCP,)
