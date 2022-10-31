@@ -2,9 +2,9 @@ import socket
 import struct
 
 
-class IPHeader:
+class IPPacket:
 
-    def __init__(self, destination, checksum=0):
+    def __init__(self, destination, mode='send', source=socket.gethostbyname(socket.gethostname()), checksum=0):
         self.version = 4
         self.header_length = 5
         self.service_type = 0
@@ -15,8 +15,11 @@ class IPHeader:
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
-        self.destination = socket.gethostbyname(destination)
-        self.source = socket.gethostbyname(socket.gethostname())
+        if mode == 'receive':
+            self.destination = destination
+        else:
+            self.destination = socket.gethostbyname(destination)
+        self.source = source
         self.packet = None
         self.create_fields()
 
