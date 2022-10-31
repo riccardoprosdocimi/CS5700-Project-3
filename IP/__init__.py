@@ -4,19 +4,29 @@ import struct
 
 
 class IPPacket:
-    def __init__(self, source, destination, data):
+    def __init__(
+        self,
+        destination,
+        data,
+        mode="send",
+        source=socket.gethostbyname(socket.gethostname()),
+        checksum=0,
+    ):
         self.version = 4
         self.header_length = 5
         self.service_type = 0
         self.total_length = len(data) + 20
-        self.identification = 0
+        self.id = 0
         self.flags = 0
         self.fragment_offset = 0
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
-        self.checksum = 0
-        self.destination = socket.gethostbyname(destination)
-        self.source = socket.gethostbyname(socket.gethostname())
+        self.checksum = checksum
+        if mode == "receive":
+            self.destination = destination
+        else:
+            self.destination = socket.gethostbyname(destination)
+        self.source = source
         self.packet = None
         self.create_fields()
 
@@ -103,7 +113,7 @@ class IPPacket:
         dst_ip = socket.inet_ntoa(dst_ip_raw)
 
         ip_packet = IPPacket(src_ip, dst_ip, data)
-        ip_packet.identification = pkt_id
+        ip_packet.id = pkt_id
         ip_packet.ttl = ttl
         ip_packet.protocol = protocol
         ip_packet.checksum = checksum

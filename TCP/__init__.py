@@ -3,7 +3,7 @@ import socket
 import struct
 
 
-class TCPHeader:
+class TCPPacket:
 
     def __init__(self, src_host, src_port, dst_host, dst_port):
         self.src_host = src_host
