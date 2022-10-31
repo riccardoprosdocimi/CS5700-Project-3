@@ -13,17 +13,32 @@ class TCPPacket:
         self.sequence_number = 0
         self.ack_sequence_number = 0
         self.data_offset = 5 << 4
-        self.fin = 0
-        self.syn = 1
-        self.rst = 0
-        self.psh = 0
-        self.ack = 0
-        self.urg = 0
+        self.flags = 0b000000000  # finish flag, synchronization flag, reset flag, acknowledgement flag, urgent flag
+        self.fin = 0b000000000  # finish flag
+        self.syn = 0b000000000  # synchronization flag
+        self.rst = 0b000000000  # reset flag
+        self.psh = 0b000000000  # push flag
+        self.ack = 0b000000000  # acknowledgement flag
+        self.urg = 0b000000000  # urgent flag
         self.window = 5840
         self.checksum = 0
         self.urgent_pointer = 0
         self.packet = None
         self.pseudo_header = None
+
+    def create_flags(self):
+        if self.fin is True:
+            self.flags = self.flags | 0b000000000
+        if self.syn is True:
+            self.flags = self.flags | 0b000000000
+        if self.rst is True:
+            self.flags = self.flags | 0b000000000
+        if self.psh is True:
+            self.flags = self.flags | 0b000000000
+        if self.ack is True:
+            self.flags = self.flags | 0b000000000
+        if self.urg is True:
+            self.flags = self.flags | 0b000000000
 
     @staticmethod
     def csum(packet):
@@ -36,18 +51,13 @@ class TCPPacket:
 
     def pack_fields(self):
         self.packet = struct.pack(
-            '!HHIIBBBBBBBHHH',
+            '!HHIIBBHHH',
             self.src_port,  # source port
             self.dst_port,  # destination port
             self.sequence_number,  # sequence number
             self.ack_sequence_number,  # acknowledgment number
             self.data_offset,  # data offset (first 4 bits of the byte, the rest is reserved)
-            self.fin,  # finish flag
-            self.syn,  # synchronization flag
-            self.rst,  # reset flag
-            self.psh,  # push flag
-            self.ack,  # acknowledgement flag
-            self.urg,  # urgent flag
+            self.flags,  # flags
             self.window,  # window
             self.checksum,  # checksum
             self.urgent_pointer  # urgent pointer
