@@ -110,4 +110,5 @@ class IPPacket:
 
         return ip_packet
 
-PROTOCOLS_TO_CAPTURE = (socket.IPPROTO_TCP, socket.IPPROTO_UDP)
+
+PROTOCOLS_TO_CAPTURE = (socket.IPPROTO_TCP,)

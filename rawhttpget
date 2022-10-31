@@ -1,6 +1,20 @@
 #!/usr/bin/env python3
 
-from IP.recv import start
+from IP import IPPacket, PROTOCOLS_TO_CAPTURE
+import socket
 
 
-start()
+def main():
+    ip_proto = socket.htons(0x0800)
+    sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ip_proto)
+
+    while True:
+        raw_pkt, _ = sock.recvfrom(4096)
+        ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
+
+        if ip_pkt.protocol in PROTOCOLS_TO_CAPTURE:
+            print(ip_pkt.source, ip_pkt.destination)
+
+
+if __name__ == "__main__":
+    main()
