@@ -13,10 +13,67 @@ class IPPacket:
         self.flags = 0
         self.fragment_offset = 0
         self.ttl = 255
-        self.protocol = 6
+        self.protocol = socket.IPPROTO_TCP
         self.checksum = 0
-        self.source = source
-        self.destination = destination
+        self.destination = socket.gethostbyname(destination)
+        self.source = socket.gethostbyname(socket.gethostname())
+        self.packet = None
+        self.create_fields()
+
+    def create_fields(self):
+        dscp = 0
+        ecn = 0
+        self.service_type = (dscp << 2) + ecn
+
+        reserved = 0
+        dont_fragment = 0
+        more_fragments = 0
+        self.flags = (
+            (reserved << 7)
+            + (dont_fragment << 6)
+            + (more_fragments << 5)
+            + self.fragment_offset
+        )
+
+        return
+
+    def pack_fields(self):
+        self.packet = struct.pack(
+            "!BBBHHHHBBH4s4s",
+            self.version,
+            self.header_length,
+            self.service_type,
+            self.total_length,
+            self.id,
+            self.flags,
+            self.fragment_offset,
+            self.ttl,
+            self.protocol,
+            self.checksum,
+            self.source,
+            self.destination,
+        )
+        return self.packet
+
+    def csum(self, sent_message, nbytes):
+        """
+        Generic checksum calculation function.
+
+        :param sent_message:
+        :param nbytes:
+        :return:
+        """
+
+        while nbytes > 1:
+            self.checksum += sent_message
+            nbytes -= 2
+        if nbytes == 1:
+            oddbyte = sent_message
+            self.checksum += oddbyte
+        self.checksum = (self.checksum >> 16) + (self.checksum & 0xFFFF)
+        self.checksum = self.checksum + (self.checksum >> 16)
+        self.checksum = ~self.checksum
+        return self.checksum
 
     @staticmethod
     def from_bytes(raw_pkt):

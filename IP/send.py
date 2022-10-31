@@ -1,31 +1,22 @@
 # Riccardo
 import socket
+import IP
 
 
-def csum(sent_message, nbytes):
-    """
-    Generic checksum calculation function.
-
-    :param sent_message:
-    :param nbytes:
-    :return:
-    """
-
-    checksum = 0
-    while nbytes > 1:
-        checksum += sent_message
-        nbytes -= 2
-    if nbytes == 1:
-        oddbyte = sent_message
-        checksum += oddbyte
-    checksum = (checksum >> 16) + (checksum & 0xffff)
-    checksum = checksum + (checksum >> 16)
-    checksum = ~checksum
-    return checksum
+def get_source_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('10.0.0.0', 0))
+    source_address, port = socket.inet_aton(s.getsockname())
+    s.close()
+    return source_address, port
 
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)  # create a raw socket
+    ip = IP.IPHeader('http://david.choffnes.com/classes/cs5700f22/project3.php')
+    ip.pack_fields()
+    s.sendto(ip.packet, get_source_address())
+
 
 
 
