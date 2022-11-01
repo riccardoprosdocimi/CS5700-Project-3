@@ -12,14 +12,14 @@ class TCPPacket:
         self.dst_port = dst_port
         self.sequence_number = 0
         self.ack_sequence_number = 0
-        self.data_offset = 5 << 4
-        self.flags = 0b000000000  # finish flag, synchronization flag, reset flag, acknowledgement flag, urgent flag
-        self.fin = 0b000000000  # finish flag
-        self.syn = 0b000000000  # synchronization flag
-        self.rst = 0b000000000  # reset flag
-        self.psh = 0b000000000  # push flag
-        self.ack = 0b000000000  # acknowledgement flag
-        self.urg = 0b000000000  # urgent flag
+        self.data_offset = 5 << 4  # 4 reserved bits out of the byte
+        self.flags = 0b00000000  # 2 reserved bits, finish, synchronization, reset, push, acknowledgement, urgent flags
+        self.fin = False  # finish flag
+        self.syn = False  # synchronization flag
+        self.rst = False  # reset flag
+        self.psh = False  # push flag
+        self.ack = False  # acknowledgement flag
+        self.urg = False  # urgent flag
         self.window = 5840
         self.checksum = 0
         self.urgent_pointer = 0
@@ -28,17 +28,17 @@ class TCPPacket:
 
     def create_flags(self):
         if self.fin is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1
         if self.syn is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1 << 1
         if self.rst is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1 << 2
         if self.psh is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1 << 3
         if self.ack is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1 << 4
         if self.urg is True:
-            self.flags = self.flags | 0b000000000
+            self.flags = self.flags | 0b1 << 5
 
     @staticmethod
     def csum(packet):
@@ -50,6 +50,7 @@ class TCPPacket:
         return (~checksum) & 0xffff
 
     def pack_fields(self):
+        self.create_flags()
         self.packet = struct.pack(
             '!HHIIBBHHH',
             self.src_port,  # source port
