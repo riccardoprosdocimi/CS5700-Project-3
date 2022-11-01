@@ -20,7 +20,7 @@ class TCPPacket:
         self.psh = False  # push flag
         self.ack = False  # acknowledgement flag
         self.urg = False  # urgent flag
-        self.window = 5840
+        self.window = 65535  # max window size
         self.checksum = 0
         self.urgent_pointer = 0
         self.packet = None
