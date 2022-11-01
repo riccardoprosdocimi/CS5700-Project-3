@@ -5,12 +5,12 @@ class Data:
 
     def __init__(self, host):
         self.port = 80
-        self.max_length = 10000
+        self.buffer = 65535  # buffer size related to TCP window size
         self.host = host
         self.http = "HTTP/1.1"
         self.newline = '\r\n'
         self.request = ""
-        self.content = ""
+        self.content = None
         self.status = 0
 
     def bild_get_message(self, page_url):
@@ -36,4 +36,4 @@ class Data:
             sys.exit(1)
         else:
             file_name = self.host.split("/")[-1]
-            open(file_name, "w").write(self.content)
+            open(file_name, "wb").write(self.content)
