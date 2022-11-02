@@ -13,17 +13,34 @@ class TCPPacket:
         self.seq_num = 0
         self.ack_num = 0
         self.data_offset = 5 << 4
-        self.fin = 0
-        self.syn = 1
-        self.rst = 0
-        self.psh = 0
-        self.ack = 0
-        self.urg = 0
         self.adv_wnd = 5840
+        self.data_offset = 5 << 4  # 4 reserved bits out of the byte
+        self.flags = 0b00000000  # 2 reserved bits, finish, synchronization, reset, push, acknowledgement, urgent flags
+        self.fin = False  # finish flag
+        self.syn = False  # synchronization flag
+        self.rst = False  # reset flag
+        self.psh = False  # push flag
+        self.ack = False  # acknowledgement flag
+        self.urg = False  # urgent flag
+        self.window = 65535  # max window size
         self.checksum = 0
         self.urgent_pointer = 0
         self.packet = None
         self.pseudo_header = None
+
+    def create_flags(self):
+        if self.fin is True:
+            self.flags = self.flags | 0b1
+        if self.syn is True:
+            self.flags = self.flags | 0b1 << 1
+        if self.rst is True:
+            self.flags = self.flags | 0b1 << 2
+        if self.psh is True:
+            self.flags = self.flags | 0b1 << 3
+        if self.ack is True:
+            self.flags = self.flags | 0b1 << 4
+        if self.urg is True:
+            self.flags = self.flags | 0b1 << 5
 
     @staticmethod
     def csum(packet):
@@ -37,20 +54,16 @@ class TCPPacket:
         return (~checksum) & 0xFFFF
 
     def pack_fields(self):
+        self.create_flags()
         self.packet = struct.pack(
-            "!HHIIBBBBBBBHHH",
+            '!HHIIBBHHH',
             self.src_port,  # source port
             self.dst_port,  # destination port
             self.seq_num,  # sequence number
             self.ack_num,  # acknowledgment number
             self.data_offset,  # data offset (first 4 bits of the byte, the rest is reserved)
-            self.fin,  # finish flag
-            self.syn,  # synchronization flag
-            self.rst,  # reset flag
-            self.psh,  # push flag
-            self.ack,  # acknowledgement flag
-            self.urg,  # urgent flag
-            self.adv_wnd,  # adv_wnd
+            self.flags,  # flags
+            self.window,  # window
             self.checksum,  # checksum
             self.urgent_pointer,  # urgent pointer
         )
