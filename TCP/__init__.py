@@ -43,10 +43,10 @@ class TCPPacket:
     @staticmethod
     def csum(packet):
         if len(packet) % 2 != 0:
-            packet += b"\0"
+            packet += b'\0'
         checksum = sum(
-            array.array("H", packet)
-        )  # create array of fixed element types to calculate sum of 16-bit words
+            array.array("H", packet)  # create array of fixed element types to calculate sum of 16-bit words
+        )
         checksum = (checksum >> 16) + (checksum & 0xFFFF)
         checksum += checksum >> 16
         return (~checksum) & 0xFFFF
