@@ -8,8 +8,8 @@ class IPPacket:
         self,
         dst,
         data,
+        src,
         mode="send",
-        src=socket.gethostbyname(socket.gethostname()),
         checksum=0,
     ):
         self.version = 4
@@ -17,8 +17,6 @@ class IPPacket:
         self.service_type = 0
         self.total_length = len(data) + 20
         self.id = 0
-        self.flags = 0
-        self.fragment_offset = 0
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
@@ -37,32 +35,30 @@ class IPPacket:
         self.service_type = (dscp << 2) + ecn
 
         reserved = 0
-        dont_fragment = 0
+        dont_fragment = 1
         more_fragments = 0
         self.flags = (
             (reserved << 7)
             + (dont_fragment << 6)
             + (more_fragments << 5)
-            + self.fragment_offset
+            + 0
         )
 
         return
 
     def pack_fields(self):
         self.packet = struct.pack(
-            "!BBBHHHHBBH4s4s",
-            self.version,
-            self.header_length,
+            "!BBHHHBBH4s4s",
+            self.version << 4 | self.header_length,
             self.service_type,
             self.total_length,
             self.id,
-            self.flags,
-            self.fragment_offset,
+            self.flags,  # Flags + fragment offset
             self.ttl,
             self.protocol,
             self.checksum,
-            self.src,
-            self.dst,
+            socket.inet_aton(self.src),
+            socket.inet_aton(self.dst),
         )
         return self.packet
 
@@ -115,8 +111,8 @@ class IPPacket:
         ip_packet = IPPacket(
             dst=dst_ip,
             data=data,
-            mode="receive",
             src=src_ip,
+            mode="receive",
             checksum=checksum,
         )
         ip_packet.id = pkt_id
