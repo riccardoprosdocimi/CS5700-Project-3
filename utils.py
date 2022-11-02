@@ -26,7 +26,7 @@ def csum(packet):
     )
     checksum = (checksum >> 16) + (checksum & 0xFFFF)
     checksum += checksum >> 16
-    return (~checksum) & 0xFFFF
+    return ~checksum & 0xFFFF
 
 
 # def csum(self, sent_message, nbytes):
