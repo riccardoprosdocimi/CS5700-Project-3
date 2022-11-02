@@ -1,43 +1,56 @@
+from binascii import hexlify
 import socket
 import struct
 
 
 class IPPacket:
-
-    def __init__(self, destination, mode='send', source=socket.gethostbyname(socket.gethostname()), checksum=0):
+    def __init__(
+        self,
+        dst,
+        data,
+        mode="send",
+        src=socket.gethostbyname(socket.gethostname()),
+        checksum=0,
+    ):
         self.version = 4
         self.header_length = 5
         self.service_type = 0
-        self.total_length = 0
-        self.id = 54321
+        self.total_length = len(data) + 20
+        self.id = 0
         self.flags = 0
         self.fragment_offset = 0
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
-        if mode == 'receive':
-            self.destination = destination
+        self.src = src
+        if mode == "receive":
+            self.dst = dst
         else:
-            self.destination = socket.gethostbyname(destination)
-        self.source = source
+            self.dst = socket.gethostbyname(dst)
+        self.data = data
         self.packet = None
         self.create_fields()
 
     def create_fields(self):
         dscp = 0
         ecn = 0
-        self. service_type = (dscp << 2) + ecn
+        self.service_type = (dscp << 2) + ecn
 
         reserved = 0
         dont_fragment = 0
         more_fragments = 0
-        self.flags = (reserved << 7) + (dont_fragment << 6) + (more_fragments << 5) + self.fragment_offset
+        self.flags = (
+            (reserved << 7)
+            + (dont_fragment << 6)
+            + (more_fragments << 5)
+            + self.fragment_offset
+        )
 
         return
 
     def pack_fields(self):
         self.packet = struct.pack(
-            '!BBBHHHHBBH4s4s',
+            "!BBBHHHHBBH4s4s",
             self.version,
             self.header_length,
             self.service_type,
@@ -48,8 +61,8 @@ class IPPacket:
             self.ttl,
             self.protocol,
             self.checksum,
-            self.source,
-            self.destination
+            self.src,
+            self.dst,
         )
         return self.packet
 
@@ -62,14 +75,53 @@ class IPPacket:
         :return:
         """
 
-        self.checksum = 0
         while nbytes > 1:
             self.checksum += sent_message
             nbytes -= 2
         if nbytes == 1:
             oddbyte = sent_message
             self.checksum += oddbyte
-        self.checksum = (self.checksum >> 16) + (self.checksum & 0xffff)
+        self.checksum = (self.checksum >> 16) + (self.checksum & 0xFFFF)
         self.checksum = self.checksum + (self.checksum >> 16)
         self.checksum = ~self.checksum
         return self.checksum
+
+    @staticmethod
+    def from_bytes(raw_pkt):
+        raw_ip_header = raw_pkt[14:35]
+        total_length_raw = raw_ip_header[2:4]
+        (total_length,) = struct.unpack("!H", total_length_raw)
+        data = raw_pkt[35:]
+        pkt_id_raw = raw_ip_header[4:6]
+        (pkt_id,) = struct.unpack("!H", pkt_id_raw)
+
+        ttl_raw = raw_ip_header[8:9]
+        (ttl,) = struct.unpack("!c", ttl_raw)
+        ttl = int(hexlify(ttl), base=16)
+
+        protocol_raw = raw_ip_header[9:10]
+        (protocol,) = struct.unpack("!c", protocol_raw)
+        protocol = int(hexlify(protocol), base=16)
+
+        checksum_raw = raw_ip_header[10:12]
+        (checksum,) = struct.unpack("!H", checksum_raw)
+
+        src_ip_raw = raw_ip_header[12:16]
+        src_ip = socket.inet_ntoa(src_ip_raw)
+
+        dst_ip_raw = raw_ip_header[16:20]
+        dst_ip = socket.inet_ntoa(dst_ip_raw)
+
+        ip_packet = IPPacket(
+            dst=dst_ip,
+            data=data,
+            mode="receive",
+            src=src_ip,
+            checksum=checksum,
+        )
+        ip_packet.id = pkt_id
+        ip_packet.ttl = ttl
+        ip_packet.protocol = protocol
+        ip_packet.checksum = checksum
+
+        return ip_packet

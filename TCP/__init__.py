@@ -1,10 +1,10 @@
 import array
+from binascii import hexlify
 import socket
 import struct
 
 
 class TCPPacket:
-
     def __init__(self, src_host, src_port, dst_host, dst_port):
         self.src_host = src_host
         self.src_port = src_port
@@ -43,11 +43,13 @@ class TCPPacket:
     @staticmethod
     def csum(packet):
         if len(packet) % 2 != 0:
-            packet += b'\0'
-        checksum = sum(array.array("H", packet))  # create array of fixed element types to calculate sum of 16-bit words
-        checksum = (checksum >> 16) + (checksum & 0xffff)
+            packet += b"\0"
+        checksum = sum(
+            array.array("H", packet)
+        )  # create array of fixed element types to calculate sum of 16-bit words
+        checksum = (checksum >> 16) + (checksum & 0xFFFF)
         checksum += checksum >> 16
-        return (~checksum) & 0xffff
+        return (~checksum) & 0xFFFF
 
     def pack_fields(self):
         self.create_flags()
@@ -61,15 +63,68 @@ class TCPPacket:
             self.flags,  # flags
             self.window,  # window
             self.checksum,  # checksum
-            self.urgent_pointer  # urgent pointer
+            self.urgent_pointer,  # urgent pointer
         )
         self.pseudo_header = struct.pack(
-            '!4s4sHH',
+            "!4s4sHH",
             socket.inet_aton(self.src_host),  # source address
             socket.inet_aton(self.dst_host),  # destination address
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.packet)  # packet length
+            len(self.packet),  # packet length
         )
         self.checksum = self.csum(self.pseudo_header + self.packet)
-        self.packet = self.packet[:16] + struct.pack('H', self.checksum) + self.packet[18:]
+        self.packet = (
+            self.packet[:16] + struct.pack("H", self.checksum) + self.packet[18:]
+        )
         return self.packet
+
+    @staticmethod
+    def from_bytes(ip_pkt, raw_tcp_pkt):
+        src_port_raw = raw_tcp_pkt[0:2]
+        (src_port,) = struct.unpack("!H", src_port_raw)
+
+        dst_port_raw = raw_tcp_pkt[2:4]
+        (dst_port,) = struct.unpack("!H", dst_port_raw)
+
+        seq_num_raw = raw_tcp_pkt[4:8]
+        (seq_num,) = struct.unpack("!I", seq_num_raw)
+
+        ack_num_raw = raw_tcp_pkt[8:12]
+        (ack_num,) = struct.unpack("!I", ack_num_raw)
+
+        flag_block_raw = raw_tcp_pkt[12:14]
+        (flag_block,) = struct.unpack("!2s", flag_block_raw)
+        flag_bits = bin(int(hexlify(flag_block), base=16))
+
+        fin = flag_bits[-1] == "1"
+        syn = flag_bits[-2] == "1"
+        rst = flag_bits[-3] == "1"
+        psh = flag_bits[-4] == "1"
+        ack = flag_bits[-5] == "1"
+        urg = flag_bits[-6] == "1"
+
+        adv_wnd_raw = raw_tcp_pkt[14:16]
+        (adv_wnd,) = struct.unpack("!H", adv_wnd_raw)
+
+        checksum_raw = raw_tcp_pkt[16:18]
+        (checksum,) = struct.unpack("!H", checksum_raw)
+
+        tcp_pkt = TCPPacket(
+            src_host=ip_pkt.src,
+            src_port=src_port,
+            dst_host=ip_pkt.dst,
+            dst_port=dst_port,
+        )
+        tcp_pkt.seq_num = seq_num
+        tcp_pkt.ack_num = ack_num
+        tcp_pkt.adv_wnd = adv_wnd
+        tcp_pkt.checksum = checksum
+
+        tcp_pkt.fin = fin
+        tcp_pkt.syn = syn
+        tcp_pkt.rst = rst
+        tcp_pkt.psh = psh
+        tcp_pkt.ack = ack
+        tcp_pkt.urg = urg
+
+        return tcp_pkt
