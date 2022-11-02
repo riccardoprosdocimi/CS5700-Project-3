@@ -13,7 +13,7 @@ def get_source_address():
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)  # create a raw socket
-    ip = IP.IPHeader('http://david.choffnes.com/classes/cs5700f22/project3.php')
+    ip = IP.IPPacket('http://david.choffnes.com/classes/cs5700f22/project3.php')
     ip.pack_fields()
     s.sendto(ip.packet, get_source_address())
 
