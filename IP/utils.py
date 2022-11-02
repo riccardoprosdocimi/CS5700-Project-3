@@ -10,3 +10,7 @@ def get_nw_interface_name() -> str:
                 return int_name
 
     raise ValueError("Cannot find a valid network interface")
+
+def get_local_ip():
+    from subprocess import check_output
+    return check_output(['hostname', '-I']).decode().strip()
