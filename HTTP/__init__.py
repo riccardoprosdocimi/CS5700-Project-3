@@ -11,7 +11,9 @@ class Data:
         self.newline = '\r\n'
         self.request = ""
         self.content = None
+        self.message = None
         self.status = 0
+        self.content_type = ""
 
     def bild_get_message(self, page_url):
         self.request = "GET" + " " + page_url + " " + self.http + self.newline \
@@ -19,16 +21,22 @@ class Data:
               + self.newline + self.newline
         return self.request
 
-    def get_html(self, msg):
-        self.content = msg.split('\n\n\n\n')[1]
+    def get_html(self):
+        self.content = self.message.split('\n\n\n\n')[1]
         return self.content
 
-    def get_status(self, msg):
-        status_line_end_index = msg.find(self.newline)
-        status_line = msg[:status_line_end_index]
+    def get_status(self):
+        status_line_end_index = self.message.find(self.newline)
+        status_line = self.message[:status_line_end_index]
         status_line_list = status_line.split(" ")
         self.status = int(status_line_list[1])
         return self.status
+
+    def get_content_type(self):
+        if "Content-Type: text/x-log" in self.message:
+            self.content_type = "binary"
+        else:
+            self.content_type = "text"
 
     def save_file(self):
         if self.status != 200:
@@ -36,4 +44,7 @@ class Data:
             sys.exit(1)
         else:
             file_name = self.host.split("/")[-1]
-            open(file_name, "wb").write(self.content)
+            if self.content_type == "binary":
+                open(file_name, "wb").write(self.content)
+            else:
+                open(file_name, "w").write(self.content)
