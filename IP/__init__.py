@@ -65,7 +65,10 @@ class IPPacket:
             self.src,
             self.dst,
         )
-        self.checksum = csum
+        self.checksum = csum(self.packet)
+        self.packet = (
+                self.packet[:10] + struct.pack("H", self.checksum) + self.packet[12:]
+        )
         return self.packet
 
     @staticmethod
