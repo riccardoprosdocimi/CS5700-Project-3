@@ -1,4 +1,5 @@
 from binascii import hexlify
+from utils import csum
 import socket
 import struct
 
@@ -64,27 +65,8 @@ class IPPacket:
             self.src,
             self.dst,
         )
+        self.checksum = csum
         return self.packet
-
-    def csum(self, sent_message, nbytes):
-        """
-        Generic checksum calculation function.
-
-        :param sent_message:
-        :param nbytes:
-        :return:
-        """
-
-        while nbytes > 1:
-            self.checksum += sent_message
-            nbytes -= 2
-        if nbytes == 1:
-            oddbyte = sent_message
-            self.checksum += oddbyte
-        self.checksum = (self.checksum >> 16) + (self.checksum & 0xFFFF)
-        self.checksum = self.checksum + (self.checksum >> 16)
-        self.checksum = ~self.checksum
-        return self.checksum
 
     @staticmethod
     def from_bytes(raw_pkt):

@@ -15,8 +15,8 @@ class Data:
         self.status = 0
         self.content_type = ""
 
-    def bild_get_message(self, page_url):
-        self.request = "GET" + " " + page_url + " " + self.http + self.newline \
+    def bild_get_message(self):
+        self.request = "GET" + " " + self.host + " " + self.http + self.newline \
               + "Host:" + " " + self.host \
               + self.newline + self.newline
         return self.request

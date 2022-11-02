@@ -1,5 +1,5 @@
-import array
 from binascii import hexlify
+from utils import csum
 import socket
 import struct
 
@@ -40,17 +40,6 @@ class TCPPacket:
         if self.urg is True:
             self.flags = self.flags | 0b1 << 5
 
-    @staticmethod
-    def csum(packet):
-        if len(packet) % 2 != 0:
-            packet += b'\0'
-        checksum = sum(
-            array.array("H", packet)  # create array of fixed element types to calculate sum of 16-bit words
-        )
-        checksum = (checksum >> 16) + (checksum & 0xFFFF)
-        checksum += checksum >> 16
-        return (~checksum) & 0xFFFF
-
     def pack_fields(self):
         self.create_flags()
         self.packet = struct.pack(
@@ -72,7 +61,7 @@ class TCPPacket:
             socket.IPPROTO_TCP,  # protocol ID
             len(self.packet),  # packet length
         )
-        self.checksum = self.csum(self.pseudo_header + self.packet)
+        self.checksum = csum(self.pseudo_header + self.packet)
         self.packet = (
             self.packet[:16] + struct.pack("H", self.checksum) + self.packet[18:]
         )
