@@ -1,5 +1,5 @@
-import array
 from binascii import hexlify
+from utils import csum
 import socket
 import struct
 
@@ -10,10 +10,8 @@ class TCPPacket:
         self.src_port = src_port
         self.dst_host = dst_host
         self.dst_port = dst_port
-        self.seq_num = 0
-        self.ack_num = 0
-        self.data_offset = 5 << 4
-        self.adv_wnd = 5840
+        self.sequence_number = 0
+        self.ack_sequence_number = 0
         self.data_offset = 5 << 4  # 4 reserved bits out of the byte
         self.flags = 0b00000000  # 2 reserved bits, finish, synchronization, reset, push, acknowledgement, urgent flags
         self.fin = False  # finish flag
@@ -42,25 +40,14 @@ class TCPPacket:
         if self.urg is True:
             self.flags = self.flags | 0b1 << 5
 
-    @staticmethod
-    def csum(packet):
-        if len(packet) % 2 != 0:
-            packet += b"\0"
-        checksum = sum(
-            array.array("H", packet)
-        )  # create array of fixed element types to calculate sum of 16-bit words
-        checksum = (checksum >> 16) + (checksum & 0xFFFF)
-        checksum += checksum >> 16
-        return (~checksum) & 0xFFFF
-
     def pack_fields(self):
         self.create_flags()
         self.packet = struct.pack(
             '!HHIIBBHHH',
             self.src_port,  # source port
             self.dst_port,  # destination port
-            self.seq_num,  # sequence number
-            self.ack_num,  # acknowledgment number
+            self.sequence_number,  # sequence number
+            self.ack_sequence_number,  # acknowledgment number
             self.data_offset,  # data offset (first 4 bits of the byte, the rest is reserved)
             self.flags,  # flags
             self.window,  # window
@@ -74,7 +61,7 @@ class TCPPacket:
             socket.IPPROTO_TCP,  # protocol ID
             len(self.packet),  # packet length
         )
-        self.checksum = self.csum(self.pseudo_header + self.packet)
+        self.checksum = csum(self.pseudo_header + self.packet)
         self.packet = (
             self.packet[:16] + struct.pack("H", self.checksum) + self.packet[18:]
         )
