@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-from threading import local
 from IP import IPPacket
 import socket
-from IP.utils import get_local_ip
+from utils import get_local_ip
 
 from TCP import TCPPacket
 

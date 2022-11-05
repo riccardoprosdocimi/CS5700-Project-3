@@ -1,4 +1,5 @@
 from binascii import hexlify
+from random import randint
 from utils import csum
 import socket
 import struct
@@ -17,7 +18,7 @@ class IPPacket:
         self.header_length = 5
         self.service_type = 0
         self.total_length = len(data) + 20
-        self.id = 0
+        self.id = randint(0, 2**16 - 1)
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
@@ -38,12 +39,7 @@ class IPPacket:
         reserved = 0
         dont_fragment = 1
         more_fragments = 0
-        self.flags = (
-            (reserved << 7)
-            + (dont_fragment << 6)
-            + (more_fragments << 5)
-            + 0
-        )
+        self.flags = (reserved << 7) + (dont_fragment << 6) + (more_fragments << 5) + 0
 
         return
 
@@ -63,7 +59,7 @@ class IPPacket:
         )
         self.checksum = csum(self.packet)
         self.packet = (
-                self.packet[:10] + struct.pack("H", self.checksum) + self.packet[12:]
+            self.packet[:10] + struct.pack("H", self.checksum) + self.packet[12:]
         )
         return self.packet
 

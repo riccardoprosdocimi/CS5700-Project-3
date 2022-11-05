@@ -10,8 +10,8 @@ class TCPPacket:
         self.src_port = src_port
         self.dst_host = dst_host
         self.dst_port = dst_port
-        self.sequence_number = 0
-        self.ack_sequence_number = 0
+        self.seq_num = 0
+        self.ack_num = 0
         self.data_offset = 5 << 4  # 4 reserved bits out of the byte
         self.flags = 0b00000000  # 2 reserved bits, finish, synchronization, reset, push, acknowledgement, urgent flags
         self.fin = False  # finish flag
@@ -20,7 +20,7 @@ class TCPPacket:
         self.psh = False  # push flag
         self.ack = False  # acknowledgement flag
         self.urg = False  # urgent flag
-        self.window = 65535  # max window size
+        self.adv_wnd = 65535  # max window size
         self.checksum = 0
         self.urgent_pointer = 0
         self.packet = None
@@ -46,11 +46,11 @@ class TCPPacket:
             '!HHIIBBHHH',
             self.src_port,  # source port
             self.dst_port,  # destination port
-            self.sequence_number,  # sequence number
-            self.ack_sequence_number,  # acknowledgment number
+            self.seq_num,  # sequence number
+            self.ack_num,  # acknowledgment number
             self.data_offset,  # data offset (first 4 bits of the byte, the rest is reserved)
             self.flags,  # flags
-            self.window,  # window
+            self.adv_wnd,  # window
             self.checksum,  # checksum
             self.urgent_pointer,  # urgent pointer
         )
