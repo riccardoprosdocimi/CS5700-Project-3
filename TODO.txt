@@ -6,3 +6,4 @@
     "Furthermore, your code must be defensive, i.e. you must check the validity of IP
     headers from the remote server. Is the remote IP correct? Is the checksum correct?
     Does the protocol identifier match the contents of the encapsulated header?"
+- Fragment flag in IP headers

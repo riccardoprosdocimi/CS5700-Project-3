@@ -4,6 +4,12 @@ from utils import csum
 import socket
 import struct
 
+from TCP import TCPPacket
+
+HEADER_SIZE = 20  # IP header size = 20 bytes
+HEADER_FORMAT = "!BBHHHBBH4s4s"
+MAX_PACKET_SIZE = 65535
+
 
 class IPPacket:
     def __init__(
@@ -17,8 +23,10 @@ class IPPacket:
         self.version = 4
         self.header_length = 5
         self.service_type = 0
-        self.total_length = len(data) + 20
-        self.id = randint(0, 2**16 - 1)
+        self.data = data
+        self.total_length = len(self.data) + HEADER_SIZE
+        self.id = randint(0, MAX_PACKET_SIZE)
+        self.flags = 0
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
@@ -27,30 +35,26 @@ class IPPacket:
             self.dst = dst
         else:
             self.dst = socket.gethostbyname(dst)
-        self.data = data
         self.packet = None
 
     def create_fields(self):
         dscp = 0
         ecn = 0
         self.service_type = (dscp << 2) + ecn
-
         reserved = 0
         dont_fragment = 1
         more_fragments = 0
         self.flags = (reserved << 7) + (dont_fragment << 6) + (more_fragments << 5) + 0
 
-        return
-
     def pack_fields(self):
         self.create_fields()
         self.packet = struct.pack(
-            "!BBHHHBBH4s4s",
+            HEADER_FORMAT,
             self.version << 4 | self.header_length,
             self.service_type,
             self.total_length,
             self.id,
-            0,  # Flags + fragment offset
+            self.flags,  # Flags + fragment offset
             self.ttl,
             self.protocol,
             self.checksum,
@@ -67,7 +71,7 @@ class IPPacket:
         return self.packet
 
     @staticmethod
-    def from_bytes(raw_pkt):
+    def unpack(raw_pkt):
         raw_ip_header = raw_pkt[14:35]
         total_length_raw = raw_ip_header[2:4]
         (total_length,) = struct.unpack("!H", total_length_raw)

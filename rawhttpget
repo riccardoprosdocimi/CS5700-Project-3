@@ -8,6 +8,7 @@ from scapy.all import *
 
 
 from TCP import TCPPacket
+import socket
 
 CLIENT_PORT = 6969
 
@@ -17,9 +18,9 @@ def recv():
 
     while True:
         raw_pkt, _ = recv_sock.recvfrom(2048)
-        ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
+        ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
         if ip_pkt.protocol == socket.IPPROTO_TCP and ip_pkt.dst == get_local_ip():
-            tcp_pkt = TCPPacket.from_bytes(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
+            tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
             if tcp_pkt.dst_port == CLIENT_PORT:
                 print(tcp_pkt)
 
