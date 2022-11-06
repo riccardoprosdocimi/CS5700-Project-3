@@ -12,10 +12,10 @@ def main():
 
     while True:
         raw_pkt, _ = sock.recvfrom(4096)
-        ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
+        ip_pkt = IPPacket.unpack_packet(raw_pkt=raw_pkt)
 
         if ip_pkt.protocol == socket.IPPROTO_TCP:
-            tcp_pkt = TCPPacket.from_bytes(ip_pkt, raw_tcp_pkt=ip_pkt.data)
+            tcp_pkt = TCPPacket.unpack_packet(ip_pkt, raw_tcp_pkt=ip_pkt.data)
             print(tcp_pkt)
 
 
