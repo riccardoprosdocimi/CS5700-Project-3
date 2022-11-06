@@ -29,7 +29,6 @@ class IPPacket:
             self.dst = socket.gethostbyname(dst)
         self.data = data
         self.packet = None
-        self.create_fields()
 
     def create_fields(self):
         dscp = 0
@@ -44,6 +43,7 @@ class IPPacket:
         return
 
     def pack_fields(self):
+        self.create_fields()
         self.packet = struct.pack(
             "!BBHHHBBH4s4s",
             self.version << 4 | self.header_length,
@@ -59,7 +59,10 @@ class IPPacket:
         )
         self.checksum = csum(self.packet)
         self.packet = (
-            self.packet[:10] + struct.pack("H", self.checksum) + self.packet[12:]
+            self.packet[:10]
+            + struct.pack("!H", self.checksum)
+            + self.packet[12:]
+            + self.data
         )
         return self.packet
 

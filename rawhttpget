@@ -4,37 +4,37 @@ from IP import IPPacket
 import socket
 from utils import get_local_ip
 
+
 from TCP import TCPPacket
 
+CLIENT_PORT = 6969
 
-def main():
+
+def recv():
     ip_proto = socket.htons(0x0800)
     recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ip_proto)
 
+    raw_pkt, _ = recv_sock.recvfrom(4096)
+    ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
     while True:
-        raw_pkt, _ = recv_sock.recvfrom(4096)
-        ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
-
         if ip_pkt.protocol == socket.IPPROTO_TCP:
             tcp_pkt = TCPPacket.from_bytes(ip_pkt, raw_tcp_pkt=ip_pkt.data)
-            print(tcp_pkt)
+            if tcp_pkt.dst_port == CLIENT_PORT:
+                print("hello")
+                print(tcp_pkt)
 
 
 def send():
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     local_ip = get_local_ip()
 
-    client_port = 6969
-
-    dst_host, dst_port = ("204.44.192.60", 443)
+    dst_host, dst_port = ("204.44.192.60", 80)
 
     tcp_pkt = TCPPacket(
-        src_host=local_ip, src_port=client_port, dst_host=dst_host, dst_port=dst_port
+        src_host=local_ip, src_port=CLIENT_PORT, dst_host=dst_host, dst_port=dst_port
     )
-    tcp_pkt.fin = True
-    tcp_pkt.urg = True
-    tcp_pkt.psh = True
-
+    tcp_pkt.seq_num = 3616486384
+    tcp_pkt.syn = True
     tcp_pkt_raw = tcp_pkt.pack_fields()
 
     ip_pkt = IPPacket(src=local_ip, dst=dst_host, data=tcp_pkt_raw)
@@ -45,5 +45,5 @@ def send():
 
 
 if __name__ == "__main__":
-    while True:
-        send()
+    send()
+    # recv()

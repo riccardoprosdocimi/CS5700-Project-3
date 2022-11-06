@@ -5,7 +5,7 @@ import struct
 
 
 class TCPPacket:
-    def __init__(self, src_host, src_port, dst_host, dst_port):
+    def __init__(self, src_host, src_port, dst_host, dst_port, data=""):
         self.src_host = src_host
         self.src_port = src_port
         self.dst_host = dst_host
@@ -25,25 +25,26 @@ class TCPPacket:
         self.urgent_pointer = 0
         self.packet = None
         self.pseudo_header = None
+        self.data = data.encode()
 
     def create_flags(self):
-        if self.fin is True:
-            self.flags = self.flags | 0b1
-        if self.syn is True:
-            self.flags = self.flags | 0b1 << 1
-        if self.rst is True:
-            self.flags = self.flags | 0b1 << 2
-        if self.psh is True:
-            self.flags = self.flags | 0b1 << 3
-        if self.ack is True:
-            self.flags = self.flags | 0b1 << 4
-        if self.urg is True:
-            self.flags = self.flags | 0b1 << 5
+        if self.fin:
+            self.flags |= 1
+        if self.syn:
+            self.flags |= 1 << 1
+        if self.rst:
+            self.flags |= 1 << 2
+        if self.psh:
+            self.flags |= 1 << 3
+        if self.ack:
+            self.flags |= 1 << 4
+        if self.urg:
+            self.flags |= 1 << 5
 
     def pack_fields(self):
         self.create_flags()
         self.packet = struct.pack(
-            '!HHIIBBHHH',
+            "!HHIIBBHHH",
             self.src_port,  # source port
             self.dst_port,  # destination port
             self.seq_num,  # sequence number
@@ -54,16 +55,21 @@ class TCPPacket:
             self.checksum,  # checksum
             self.urgent_pointer,  # urgent pointer
         )
+        reserved = 0
         self.pseudo_header = struct.pack(
-            "!4s4sHH",
+            "!4s4sBBH",
             socket.inet_aton(self.src_host),  # source address
             socket.inet_aton(self.dst_host),  # destination address
+            reserved,
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.packet),  # packet length
+            len(self.packet) + len(self.data),  # packet length
         )
-        self.checksum = csum(self.pseudo_header + self.packet)
+        self.checksum = csum(self.pseudo_header + self.packet + self.data)
         self.packet = (
-            self.packet[:16] + struct.pack("H", self.checksum) + self.packet[18:]
+            self.packet[:16]
+            + struct.pack("!H", self.checksum)
+            + self.packet[18:]
+            + self.data
         )
         return self.packet
 
