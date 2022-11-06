@@ -3,8 +3,6 @@
 from IP import IPPacket
 import socket
 from utils import get_local_ip
-import threading
-from scapy.all import *
 
 
 from TCP import TCPPacket
@@ -29,7 +27,7 @@ def send():
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
     local_ip = get_local_ip()
 
-    dst_host, dst_port = ("142.251.35.174", 80)
+    dst_host, dst_port = ("204.44.192.60", 80)
 
     tcp_pkt = TCPPacket(
         src_host=local_ip, src_port=CLIENT_PORT, dst_host=dst_host, dst_port=dst_port
@@ -46,8 +44,5 @@ def send():
 
 
 if __name__ == "__main__":
-    recv_thread = threading.Thread(target=recv)
-    recv_thread.start()
-
-    send_thread = threading.Thread(target=send)
-    send_thread.start()
+    send()
+    recv()

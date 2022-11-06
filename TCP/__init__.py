@@ -33,7 +33,7 @@ class TCPPacket:
         self.adv_wnd = 65535  # max window size
         self.checksum = 0
         self.urgent_pointer = 0
-        self.header = None
+        self.packet = None
         self.pseudo_header = None
         self.http_packet = http_packet.encode()
 
@@ -53,7 +53,7 @@ class TCPPacket:
 
     def pack_fields(self):
         self.create_flags()
-        self.header = struct.pack(
+        self.packet = struct.pack(
             HEADER_FORMAT,
             self.src_port,  # source port
             self.dst_port,  # destination port
@@ -74,14 +74,14 @@ class TCPPacket:
             socket.IPPROTO_TCP,  # protocol ID
             len(self.packet) + len(self.http_packet),  # packet length
         )
-        self.checksum = csum(self.pseudo_header + self.packet + self.data)
+        self.checksum = csum(self.pseudo_header + self.packet + self.http_packet)
         self.packet = (
             self.packet[:16]
             + struct.pack("!H", self.checksum)
             + self.packet[18:]
             + self.http_packet
         )
-        return self.header
+        return self.packet
 
     def recv(self):
         incoming_packets = dict()
