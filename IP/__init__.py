@@ -50,7 +50,7 @@ class IPPacket:
             self.service_type,
             self.total_length,
             self.id,
-            self.flags,  # Flags + fragment offset
+            0,  # Flags + fragment offset
             self.ttl,
             self.protocol,
             self.checksum,

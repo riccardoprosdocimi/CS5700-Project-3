@@ -14,13 +14,12 @@ def recv():
     ip_proto = socket.htons(0x0800)
     recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ip_proto)
 
-    raw_pkt, _ = recv_sock.recvfrom(4096)
-    ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
     while True:
+        raw_pkt, _ = recv_sock.recvfrom(4096)
+        ip_pkt = IPPacket.from_bytes(raw_pkt=raw_pkt)
         if ip_pkt.protocol == socket.IPPROTO_TCP:
             tcp_pkt = TCPPacket.from_bytes(ip_pkt, raw_tcp_pkt=ip_pkt.data)
             if tcp_pkt.dst_port == CLIENT_PORT:
-                print("hello")
                 print(tcp_pkt)
 
 
@@ -40,10 +39,10 @@ def send():
     ip_pkt = IPPacket(src=local_ip, dst=dst_host, data=tcp_pkt_raw)
     ip_pkt_raw = ip_pkt.pack_fields()
 
-    sent_bytes = send_sock.sendto(ip_pkt_raw, (dst_host, dst_port))
-    print(sent_bytes)
+    bytes_sent = send_sock.sendto(ip_pkt_raw, (dst_host, dst_port))
+    assert len(ip_pkt_raw) == bytes_sent
 
 
 if __name__ == "__main__":
     send()
-    # recv()
+    recv()
