@@ -1,7 +1,11 @@
 from binascii import hexlify
+from random import randint
 from utils import csum
 import socket
 import struct
+
+HEADER_SIZE = 20  # IP header size = 20 bytes
+MAX_PACKET_SIZE = 65535
 
 
 class IPPacket:
@@ -16,8 +20,8 @@ class IPPacket:
         self.version = 4
         self.header_length = 5
         self.service_type = 0
-        self.total_length = len(data) + 20
-        self.id = 0
+        self.total_length = len(data) + HEADER_SIZE
+        self.id = randint(0, MAX_PACKET_SIZE)
         self.flags = 0
         self.fragment_offset = 0
         self.ttl = 255
@@ -36,7 +40,6 @@ class IPPacket:
         dscp = 0
         ecn = 0
         self.service_type = (dscp << 2) + ecn
-
         reserved = 0
         dont_fragment = 0
         more_fragments = 0
@@ -46,8 +49,6 @@ class IPPacket:
             + (more_fragments << 5)
             + self.fragment_offset
         )
-
-        return
 
     def pack_fields(self):
         self.packet = struct.pack(
@@ -72,7 +73,7 @@ class IPPacket:
         return self.packet
 
     @staticmethod
-    def from_bytes(raw_pkt):
+    def unpack_packet(raw_pkt):
         raw_ip_header = raw_pkt[14:35]
         total_length_raw = raw_ip_header[2:4]
         (total_length,) = struct.unpack("!H", total_length_raw)
