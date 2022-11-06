@@ -5,6 +5,7 @@ import socket
 import struct
 
 HEADER_SIZE = 20  # IP header size = 20 bytes
+HEADER_FORMAT = "!BBBHHHHBBH4s4s"
 MAX_PACKET_SIZE = 65535
 
 
@@ -33,7 +34,7 @@ class IPPacket:
         else:
             self.dst = socket.gethostbyname(dst)
         self.data = data
-        self.packet = None
+        self.header = None
         self.create_fields()
 
     def create_fields(self):
@@ -51,8 +52,8 @@ class IPPacket:
         )
 
     def pack_fields(self):
-        self.packet = struct.pack(
-            "!BBBHHHHBBH4s4s",
+        self.header = struct.pack(
+            HEADER_FORMAT,
             self.version,
             self.header_length,
             self.service_type,
@@ -66,11 +67,11 @@ class IPPacket:
             self.src,
             self.dst,
         )
-        self.checksum = csum(self.packet)
-        self.packet = (
-                self.packet[:10] + struct.pack("H", self.checksum) + self.packet[12:]
+        self.checksum = csum(self.header)
+        self.header = (
+                self.header[:10] + struct.pack("H", self.checksum) + self.header[12:]
         )
-        return self.packet
+        return self.header
 
     @staticmethod
     def unpack_packet(raw_pkt):

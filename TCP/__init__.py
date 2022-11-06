@@ -9,6 +9,8 @@ import socket
 import struct
 
 TIMEOUT = 60  # if packet not ACKed within 1 minute -> packet lost -> retransmit
+HEADER_FORMAT = "!HHIIBBHHH"
+WINDOW_SIZE = 65535
 
 
 class TCPPacket:
@@ -16,8 +18,8 @@ class TCPPacket:
                  src_port,
                  dst_host,
                  dst_port,
-                 ip_packet: IPPacket = ""):
-        self.receiving_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+                 ip_packet: IPPacket = None):
+
         self.sending_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
         self.src_host = src_host
         self.src_port = src_port
@@ -33,11 +35,11 @@ class TCPPacket:
         self.psh = False  # push flag
         self.ack = False  # acknowledgement flag
         self.urg = False  # urgent flag
-        self.window = 65535  # max window size
+        self.window = WINDOW_SIZE  # max advertised window size
         self.checksum = 0
         self.urgent_pointer = 0
         self.data = ip_packet
-        self.packet = None
+        self.header = None
         self.pseudo_header = None
 
     def create_flags(self):
@@ -56,8 +58,8 @@ class TCPPacket:
 
     def pack_fields(self):
         self.create_flags()
-        self.packet = struct.pack(
-            '!HHIIBBHHH',
+        self.header = struct.pack(
+            HEADER_FORMAT,
             self.src_port,  # source port
             self.dst_port,  # destination port
             self.sequence_number,  # sequence number
@@ -73,19 +75,19 @@ class TCPPacket:
             socket.inet_aton(self.src_host),  # source address
             socket.inet_aton(self.dst_host),  # destination address
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.packet),  # packet length
+            len(self.header) + self.data.total_length,  # packet length
         )
-        self.checksum = csum(self.pseudo_header + self.packet)
-        self.packet = (
-            self.packet[:16] + struct.pack("H", self.checksum) + self.packet[18:]
+        self.checksum = csum(self.pseudo_header + self.header)
+        self.header = (
+                self.header[:16] + struct.pack("H", self.checksum) + self.header[18:]
         )
-        return self.packet
+        return self.header
 
     def recv(self):
         incoming_packets = dict()
         while True:
-            self.packet = self._recv()
-            if not self.packet:
+            self.header = self._recv()
+            if not self.header:
                 print("The server is down", file=sys.stderr)
                 self.start_close_connection()
                 sys.exit(1)
@@ -124,13 +126,15 @@ class TCPPacket:
     def recv_ack(self, sequence_increment: int = 0):
         start_time = time.time()
         while time.time() - start_time < TIMEOUT:
-            self.packet = self._recv()
-            if not self.packet:  # if packet is empty
+            self.header = self._recv()
+            if not self.header:  # if packet is empty
                 break  # abort
-            if self.packet.ack and \
-                    self.packet.ack_sequence_number >= self.sequence_number + len(self.data.data) + sequence_increment:
-                self.sequence_number = self.packet.ack_sequence_number
-                self.ack_sequence_number = self.packet.sequence_number + sequence_increment
+            if self.header.ack and \
+                    self.header.ack_sequence_number >= self.sequence_number + \
+                    self.data.total_length + \
+                    sequence_increment:
+                self.sequence_number = self.header.ack_sequence_number
+                self.ack_sequence_number = self.header.sequence_number + sequence_increment
                 return True
         return False
 
