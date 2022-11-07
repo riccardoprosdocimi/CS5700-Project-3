@@ -76,25 +76,6 @@ class TCPPacket:
         )
         return self.packet
 
-    def _send(self, data=None):
-        self.ack = True
-        self.syn = True
-        self.data.data = data
-        self.pack_fields()
-        self.data.pack_fields()
-        self.sending_socket.sendto(self.data, (self.dst_host, self.dst_port))
-
-    def send(self, data):
-        self._send(data)
-        while not self.recv_ack():
-            self._send(data)
-        self.data.data = None
-
-    def connect(self):
-        self.sequence_number = randint(
-            0, (2 << 31) - 1
-        )  # max number of possible sequence numbers = 2^32
-
     @staticmethod
     def unpack(ip_pkt, raw_tcp_pkt):
         (

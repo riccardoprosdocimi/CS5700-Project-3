@@ -23,12 +23,14 @@ class TCPSocket:
 
         self.dst_host = socket.gethostbyname(dst_host)
         self.dst_port = 80  # HTTP
-        self.dst_seq_num = 0
+        self.dst_seq_num = -1
 
         self.src_host = get_local_ip()
         self.src_port = randint(1025, 65535)
+        self.src_seq_num = randint(0, 2**32 - 1)
 
-    def handshake(self) -> bool:
+    def connect(self) -> bool:
+        # 3-way handshake
         syn_pkt = self.new_tcp_pkt()
         syn_pkt.syn = True
         self.send(syn_pkt)
@@ -36,12 +38,15 @@ class TCPSocket:
         recvd_pkt = self.recv()
         if recvd_pkt and self.is_syn_ack(recvd_pkt):
             self.dst_seq_num = recvd_pkt.seq_num
+            self.src_seq_num = recvd_pkt.ack_num
+            
             ack_pkt = self.new_tcp_pkt()
             ack_pkt.ack = True
             self.send(ack_pkt)
             return True
         else:
             # TODO: Handle error when SYN/ACK is not received
+            # Probably want to close connection using FIN/ACK
             return False
 
     def send(self, tcp_pkt: TCPPacket):
@@ -74,7 +79,8 @@ class TCPSocket:
             dst_port=self.dst_port,
         )
 
-        pkt.seq_num = randint(0, 2**32 - 1)
+        pkt.seq_num = self.src_seq_num
+        pkt.ack_num = self.dst_seq_num + 1
         pkt.adv_wnd = self.adv_wnd
         return pkt
 
