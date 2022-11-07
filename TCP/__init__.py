@@ -4,29 +4,24 @@ from binascii import hexlify
 from functools import reduce
 from random import randint
 from utils import csum
-from IP import IPPacket
+from HTTP import Data
 import socket
 import struct
 
 TIMEOUT = 60  # if packet not ACKed within 1 minute -> packet lost -> retransmit
 HEADER_FORMAT = "!HHIIBBHHH"
+PSEUDO_HEADER_FORMAT = "!4s4sBBH"
 WINDOW_SIZE = 65535
 
 
 class TCPPacket:
-    def __init__(self, src_host,
-                 src_port,
-                 dst_host,
-                 dst_port,
-                 ip_packet: IPPacket = None):
-
-        self.sending_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+    def __init__(self, src_host, src_port, dst_host, dst_port, http_packet=""):
         self.src_host = src_host
         self.src_port = src_port
         self.dst_host = dst_host
         self.dst_port = dst_port
-        self.sequence_number = 0
-        self.ack_sequence_number = 0
+        self.seq_num = 0
+        self.ack_num = 0
         self.data_offset = 5 << 4  # 4 reserved bits out of the byte
         self.flags = 0b00000000  # 2 reserved bits, finish, synchronization, reset, push, acknowledgement, urgent flags
         self.fin = False  # finish flag
@@ -35,53 +30,58 @@ class TCPPacket:
         self.psh = False  # push flag
         self.ack = False  # acknowledgement flag
         self.urg = False  # urgent flag
-        self.window = WINDOW_SIZE  # max advertised window size
+        self.adv_wnd = 65535  # max window size
         self.checksum = 0
         self.urgent_pointer = 0
-        self.data = ip_packet
-        self.header = None
+        self.packet = None
         self.pseudo_header = None
+        self.http_packet = http_packet.encode()
 
     def create_flags(self):
-        if self.fin is True:
-            self.flags = self.flags | 0b1
-        if self.syn is True:
-            self.flags = self.flags | 0b1 << 1
-        if self.rst is True:
-            self.flags = self.flags | 0b1 << 2
-        if self.psh is True:
-            self.flags = self.flags | 0b1 << 3
-        if self.ack is True:
-            self.flags = self.flags | 0b1 << 4
-        if self.urg is True:
-            self.flags = self.flags | 0b1 << 5
+        if self.fin:
+            self.flags |= 1
+        if self.syn:
+            self.flags |= 1 << 1
+        if self.rst:
+            self.flags |= 1 << 2
+        if self.psh:
+            self.flags |= 1 << 3
+        if self.ack:
+            self.flags |= 1 << 4
+        if self.urg:
+            self.flags |= 1 << 5
 
     def pack_fields(self):
         self.create_flags()
-        self.header = struct.pack(
+        self.packet = struct.pack(
             HEADER_FORMAT,
             self.src_port,  # source port
             self.dst_port,  # destination port
-            self.sequence_number,  # sequence number
-            self.ack_sequence_number,  # acknowledgment number
+            self.seq_num,  # sequence number
+            self.ack_num,  # acknowledgment number
             self.data_offset,  # data offset (first 4 bits of the byte, the rest is reserved)
             self.flags,  # flags
-            self.window,  # window
+            self.adv_wnd,  # window
             self.checksum,  # checksum
             self.urgent_pointer,  # urgent pointer
         )
+        reserved = 0
         self.pseudo_header = struct.pack(
-            "!4s4sHH",
+            PSEUDO_HEADER_FORMAT,
             socket.inet_aton(self.src_host),  # source address
             socket.inet_aton(self.dst_host),  # destination address
+            reserved,
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.header) + self.data.total_length,  # packet length
+            len(self.packet) + len(self.http_packet),  # packet length
         )
-        self.checksum = csum(self.pseudo_header + self.header)
-        self.header = (
-                self.header[:16] + struct.pack("H", self.checksum) + self.header[18:]
+        self.checksum = csum(self.pseudo_header + self.packet + self.http_packet)
+        self.packet = (
+            self.packet[:16]
+            + struct.pack("!H", self.checksum)
+            + self.packet[18:]
+            + self.http_packet
         )
-        return self.header
+        return self.packet
 
     def recv(self):
         incoming_packets = dict()
@@ -93,14 +93,20 @@ class TCPPacket:
                 sys.exit(1)
             elif self.ack and self.sequence_number not in incoming_packets:
                 incoming_packets[self.sequence_number] = self.data
-                self.ack_sequence_number = self.sequence_number + len(self.data.total_length)
+                self.ack_sequence_number = self.sequence_number + len(
+                    self.data.total_length
+                )
                 if self.fin:  # server wants to close connection
                     self.end_close_connection()
                     break  # shut down connection
                 else:
                     self._send()
         incoming_ordered_packets = sorted(incoming_packets.items())
-        self.data = reduce(lambda packet_x, packet_y: packet_x + packet_y[-1], incoming_ordered_packets, "")
+        self.data = reduce(
+            lambda packet_x, packet_y: packet_x + packet_y[-1],
+            incoming_ordered_packets,
+            "",
+        )
 
     def _recv(self):
         self.receiving_socket.settimeout(TIMEOUT)
@@ -109,15 +115,19 @@ class TCPPacket:
                 raw_data = self.receiving_socket.recv(self.window)
                 ip_packet = self.data.unpack_packet(raw_data)
                 # if server's IP source and destination addresses don't match client's and checksum doesn't add up
-                if ip_packet.dst != self.src_host or \
-                        ip_packet.src != self.dst_host or \
-                        ip_packet.checksum != 0:
+                if (
+                    ip_packet.dst != self.src_host
+                    or ip_packet.src != self.dst_host
+                    or ip_packet.checksum != 0
+                ):
                     continue  # ignore the packet
                 tcp_packet = self.unpack_packet(ip_packet.data, raw_data)
                 # if server's TCP source and destination ports don't match client's and checksum doesn't add up
-                if tcp_packet.src_port != self.dst_port or\
-                        tcp_packet.dst_port != self.src_port or\
-                        tcp_packet.checksum != 0:
+                if (
+                    tcp_packet.src_port != self.dst_port
+                    or tcp_packet.dst_port != self.src_port
+                    or tcp_packet.checksum != 0
+                ):
                     continue  # ignore the packet
                 return tcp_packet
         except socket.timeout:
@@ -129,12 +139,15 @@ class TCPPacket:
             self.header = self._recv()
             if not self.header:  # if packet is empty
                 break  # abort
-            if self.header.ack and \
-                    self.header.ack_sequence_number >= self.sequence_number + \
-                    self.data.total_length + \
-                    sequence_increment:
+            if (
+                self.header.ack
+                and self.header.ack_sequence_number
+                >= self.sequence_number + self.data.total_length + sequence_increment
+            ):
                 self.sequence_number = self.header.ack_sequence_number
-                self.ack_sequence_number = self.header.sequence_number + sequence_increment
+                self.ack_sequence_number = (
+                    self.header.sequence_number + sequence_increment
+                )
                 return True
         return False
 
@@ -153,11 +166,12 @@ class TCPPacket:
         self.data.data = None
 
     def connect(self):
-        self.sequence_number = randint(0, (2 << 31) - 1)  # max number of possible sequence numbers = 2^32
-
+        self.sequence_number = randint(
+            0, (2 << 31) - 1
+        )  # max number of possible sequence numbers = 2^32
 
     @staticmethod
-    def unpack_packet(ip_pkt, raw_tcp_pkt):
+    def unpack(ip_pkt, raw_tcp_pkt):
         src_port_raw = raw_tcp_pkt[0:2]
         (src_port,) = struct.unpack("!H", src_port_raw)
 

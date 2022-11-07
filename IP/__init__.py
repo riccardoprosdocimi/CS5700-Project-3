@@ -4,8 +4,10 @@ from utils import csum
 import socket
 import struct
 
+from TCP import TCPPacket
+
 HEADER_SIZE = 20  # IP header size = 20 bytes
-HEADER_FORMAT = "!BBBHHHHBBH4s4s"
+HEADER_FORMAT = "!BBHHHBBH4s4s"
 MAX_PACKET_SIZE = 65535
 
 
@@ -14,17 +16,17 @@ class IPPacket:
         self,
         dst,
         data,
+        src,
         mode="send",
-        src=socket.gethostbyname(socket.gethostname()),
         checksum=0,
     ):
         self.version = 4
         self.header_length = 5
         self.service_type = 0
-        self.total_length = len(data) + HEADER_SIZE
+        self.data = data
+        self.total_length = len(self.data) + HEADER_SIZE
         self.id = randint(0, MAX_PACKET_SIZE)
         self.flags = 0
-        self.fragment_offset = 0
         self.ttl = 255
         self.protocol = socket.IPPROTO_TCP
         self.checksum = checksum
@@ -33,48 +35,43 @@ class IPPacket:
             self.dst = dst
         else:
             self.dst = socket.gethostbyname(dst)
-        self.data = data
-        self.header = None
-        self.create_fields()
+        self.packet = None
 
     def create_fields(self):
         dscp = 0
         ecn = 0
         self.service_type = (dscp << 2) + ecn
         reserved = 0
-        dont_fragment = 0
+        dont_fragment = 1
         more_fragments = 0
-        self.flags = (
-            (reserved << 7)
-            + (dont_fragment << 6)
-            + (more_fragments << 5)
-            + self.fragment_offset
-        )
+        self.flags = (reserved << 7) + (dont_fragment << 6) + (more_fragments << 5) + 0
 
     def pack_fields(self):
-        self.header = struct.pack(
+        self.create_fields()
+        self.packet = struct.pack(
             HEADER_FORMAT,
-            self.version,
-            self.header_length,
+            self.version << 4 | self.header_length,
             self.service_type,
             self.total_length,
             self.id,
-            self.flags,
-            self.fragment_offset,
+            self.flags,  # Flags + fragment offset
             self.ttl,
             self.protocol,
             self.checksum,
-            self.src,
-            self.dst,
+            socket.inet_aton(self.src),
+            socket.inet_aton(self.dst),
         )
-        self.checksum = csum(self.header)
-        self.header = (
-                self.header[:10] + struct.pack("H", self.checksum) + self.header[12:]
+        self.checksum = csum(self.packet)
+        self.packet = (
+            self.packet[:10]
+            + struct.pack("!H", self.checksum)
+            + self.packet[12:]
+            + self.data
         )
-        return self.header
+        return self.packet
 
     @staticmethod
-    def unpack_packet(raw_pkt):
+    def unpack(raw_pkt):
         raw_ip_header = raw_pkt[14:35]
         total_length_raw = raw_ip_header[2:4]
         (total_length,) = struct.unpack("!H", total_length_raw)
@@ -102,8 +99,8 @@ class IPPacket:
         ip_packet = IPPacket(
             dst=dst_ip,
             data=data,
-            mode="receive",
             src=src_ip,
+            mode="receive",
             checksum=checksum,
         )
         ip_packet.id = pkt_id
