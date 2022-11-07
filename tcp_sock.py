@@ -23,11 +23,12 @@ class TCPSocket:
 
         self.dst_host = socket.gethostbyname(dst_host)
         self.dst_port = 80  # HTTP
-        self.dst_seq_num = -1
 
         self.src_host = get_local_ip()
         self.src_port = randint(1025, 65535)
-        self.src_seq_num = randint(0, 2**32 - 1)
+
+        self.seq_num = randint(0, 2**32 - 1)
+        self.ack_num = 0
 
     def connect(self) -> bool:
         # 3-way handshake
@@ -52,27 +53,32 @@ class TCPSocket:
 
     def send(self, http_pkt: str):
         tcp_pkt = self.new_tcp_pkt(http_pkt=http_pkt)
+        tcp_pkt.ack = True
         self.send_pkt(tcp_pkt=tcp_pkt)
 
     def recv(self):
         window = {}
 
         while True:
-            print(window)
             recvd_pkt = self.recv_pkt()
             if not recvd_pkt:
                 # TODO handle error
                 print("Handle error when packet is null")
                 return
 
-            if recvd_pkt.ack and recvd_pkt.seq_num not in window:
-                window[recvd_pkt.seq_num] = recvd_pkt.http_packet
-                self.send_ack()
-            elif recvd_pkt.fin or recvd_pkt.rst:
+            if recvd_pkt.fin or recvd_pkt.rst:
                 self.close()
                 break
+            elif recvd_pkt.ack and recvd_pkt.seq_num not in window:
+                window[recvd_pkt.seq_num] = recvd_pkt.http_packet
+                self.send_ack()
 
-        print(window)
+        sorted_seq_nums = sorted(window.keys())
+        data = bytearray()
+        for seq_num in sorted_seq_nums:
+            data += window[seq_num]
+
+        return data
 
     def send_ack(self):
         ack_pkt = self.new_tcp_pkt()
@@ -97,8 +103,8 @@ class TCPSocket:
                 if ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                     if tcp_pkt.dst_port == self.src_port:
-                        self.dst_seq_num = tcp_pkt.seq_num
-                        self.src_seq_num = tcp_pkt.ack_num
+                        self.seq_num = tcp_pkt.ack_num
+                        self.ack_num = tcp_pkt.seq_num + 1
                         return tcp_pkt
             except socket.timeout:
                 return None
@@ -112,8 +118,8 @@ class TCPSocket:
             http_packet=http_pkt,
         )
 
-        pkt.seq_num = self.src_seq_num
-        pkt.ack_num = self.dst_seq_num + max(1, len(http_pkt.encode()))
+        pkt.seq_num = self.seq_num
+        pkt.ack_num = self.ack_num
         pkt.adv_wnd = self.adv_wnd
         return pkt
 

@@ -107,6 +107,7 @@ class TCPPacket:
         tcp_pkt.ack_num = ack_num
         tcp_pkt.adv_wnd = adv_wnd
         tcp_pkt.checksum = checksum
+        tcp_pkt.http_packet = raw_tcp_pkt[20:]
 
         tcp_pkt.fin = fin
         tcp_pkt.syn = syn
