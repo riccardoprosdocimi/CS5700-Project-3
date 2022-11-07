@@ -66,12 +66,13 @@ class TCPSocket:
                 print("Handle error when packet is null")
                 return
 
-            if recvd_pkt.fin or recvd_pkt.rst:
-                self.close()
-                break
-            elif recvd_pkt.ack and recvd_pkt.seq_num not in window:
+            if recvd_pkt.ack and recvd_pkt.seq_num not in window:
                 window[recvd_pkt.seq_num] = recvd_pkt.http_packet
                 self.send_ack()
+
+                if recvd_pkt.fin or recvd_pkt.rst:
+                    self.close()
+                    break
 
         sorted_seq_nums = sorted(window.keys())
         data = bytearray()
