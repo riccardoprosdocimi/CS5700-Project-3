@@ -24,7 +24,7 @@ def csum(packet):
     for chunk in struct.unpack("!%sH" % words, packet[:words * 2]):
         checksum += chunk  # add up 16-bit words
     if len(packet) % 2 != 0:
-        checksum += b'\0'  # add leftover byte
+        checksum += 0  # add leftover byte
     checksum = (checksum >> 16) + (checksum & 0xffff)
     checksum += checksum >> 16  # fold 32-bit into 16-bit
     return ~checksum & 0xffff

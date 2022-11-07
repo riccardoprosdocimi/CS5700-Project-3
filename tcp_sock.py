@@ -33,23 +33,27 @@ class TCPSocket:
         # 3-way handshake
         syn_pkt = self.new_tcp_pkt()
         syn_pkt.syn = True
-        self.send(syn_pkt)
+        self.send_pkt(syn_pkt)
 
-        recvd_pkt = self.recv()
+        recvd_pkt = self.recv_pkt()
         if recvd_pkt and self.is_syn_ack(recvd_pkt):
             self.dst_seq_num = recvd_pkt.seq_num
             self.src_seq_num = recvd_pkt.ack_num
-            
+
             ack_pkt = self.new_tcp_pkt()
             ack_pkt.ack = True
-            self.send(ack_pkt)
+            self.send_pkt(ack_pkt)
             return True
         else:
             # TODO: Handle error when SYN/ACK is not received
             # Probably want to close connection using FIN/ACK
             return False
 
-    def send(self, tcp_pkt: TCPPacket):
+    def send(self, http_pkt: str):
+        tcp_pkt = self.new_tcp_pkt(http_pkt=http_pkt)
+        self.send_pkt(tcp_pkt=tcp_pkt)
+
+    def send_pkt(self, tcp_pkt: TCPPacket):
         ip_pkt = IPPacket(
             src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack_fields()
         )
@@ -58,7 +62,7 @@ class TCPSocket:
         bytes_sent = self.send_sock.sendto(ip_pkt_raw, (self.dst_host, self.dst_port))
         assert len(ip_pkt_raw) == bytes_sent
 
-    def recv(self) -> Optional[TCPPacket]:  # returns None on timeout
+    def recv_pkt(self) -> Optional[TCPPacket]:  # returns None on timeout
         while True:
             try:
                 raw_pkt, _ = self.recv_sock.recvfrom(65535)
@@ -71,12 +75,13 @@ class TCPSocket:
             except socket.timeout:
                 return None
 
-    def new_tcp_pkt(self) -> TCPPacket:
+    def new_tcp_pkt(self, http_pkt: str = "") -> TCPPacket:
         pkt = TCPPacket(
             src_host=self.src_host,
             src_port=self.src_port,
             dst_host=self.dst_host,
             dst_port=self.dst_port,
+            http_packet=http_pkt,
         )
 
         pkt.seq_num = self.src_seq_num
