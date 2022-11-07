@@ -4,7 +4,7 @@ from utils import csum
 import socket
 import struct
 
-from TCP import TCPPacket
+from tcp_pkt import TCPPacket
 
 HEADER_SIZE = 20  # IP header size = 20 bytes
 HEADER_FORMAT = "!BBHHHBBH4s4s"

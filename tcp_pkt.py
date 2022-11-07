@@ -1,17 +1,10 @@
-import sys
-import time
-from binascii import hexlify
-from functools import reduce
 from random import randint
 from utils import csum
-from HTTP import Data
 import socket
 import struct
 
-TIMEOUT = 60  # if packet not ACKed within 1 minute -> packet lost -> retransmit
 HEADER_FORMAT = "!HHIIBBHHH"
 PSEUDO_HEADER_FORMAT = "!4s4sBBH"
-WINDOW_SIZE = 65535
 
 
 class TCPPacket:
@@ -82,74 +75,6 @@ class TCPPacket:
             + self.http_packet
         )
         return self.packet
-
-    def recv(self):
-        incoming_packets = dict()
-        while True:
-            self.header = self._recv()
-            if not self.header:
-                print("The server is down", file=sys.stderr)
-                self.start_close_connection()
-                sys.exit(1)
-            elif self.ack and self.sequence_number not in incoming_packets:
-                incoming_packets[self.sequence_number] = self.data
-                self.ack_sequence_number = self.sequence_number + len(
-                    self.data.total_length
-                )
-                if self.fin:  # server wants to close connection
-                    self.end_close_connection()
-                    break  # shut down connection
-                else:
-                    self._send()
-        incoming_ordered_packets = sorted(incoming_packets.items())
-        self.data = reduce(
-            lambda packet_x, packet_y: packet_x + packet_y[-1],
-            incoming_ordered_packets,
-            "",
-        )
-
-    def _recv(self):
-        self.receiving_socket.settimeout(TIMEOUT)
-        try:
-            while True:
-                raw_data = self.receiving_socket.recv(self.window)
-                ip_packet = self.data.unpack_packet(raw_data)
-                # if server's IP source and destination addresses don't match client's and checksum doesn't add up
-                if (
-                    ip_packet.dst != self.src_host
-                    or ip_packet.src != self.dst_host
-                    or ip_packet.checksum != 0
-                ):
-                    continue  # ignore the packet
-                tcp_packet = self.unpack_packet(ip_packet.data, raw_data)
-                # if server's TCP source and destination ports don't match client's and checksum doesn't add up
-                if (
-                    tcp_packet.src_port != self.dst_port
-                    or tcp_packet.dst_port != self.src_port
-                    or tcp_packet.checksum != 0
-                ):
-                    continue  # ignore the packet
-                return tcp_packet
-        except socket.timeout:
-            return None
-
-    def recv_ack(self, sequence_increment: int = 0):
-        start_time = time.time()
-        while time.time() - start_time < TIMEOUT:
-            self.header = self._recv()
-            if not self.header:  # if packet is empty
-                break  # abort
-            if (
-                self.header.ack
-                and self.header.ack_sequence_number
-                >= self.sequence_number + self.data.total_length + sequence_increment
-            ):
-                self.sequence_number = self.header.ack_sequence_number
-                self.ack_sequence_number = (
-                    self.header.sequence_number + sequence_increment
-                )
-                return True
-        return False
 
     def _send(self, data=None):
         self.ack = True
