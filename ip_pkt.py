@@ -1,10 +1,7 @@
-from binascii import hexlify
 from random import randint
 from utils import csum
 import socket
 import struct
-
-from tcp_pkt import TCPPacket
 
 HEADER_SIZE = 20  # IP header size = 20 bytes
 HEADER_FORMAT = "!BBHHHBBH4s4s"
@@ -83,7 +80,7 @@ class IPPacket:
             checksum,
             src_ip,
             dst_ip,
-        ) = struct.unpack("!BBHHHBBH4s4s", raw_pkt[:20])
+        ) = struct.unpack(HEADER_FORMAT, raw_pkt[:20])
 
         if ver_hl != 0x45:
             print("not IPv4")

@@ -88,7 +88,7 @@ class TCPPacket:
             adv_wnd,
             checksum,
             urg,
-        ) = struct.unpack("!HHIIBBHHH", raw_tcp_pkt[:20])
+        ) = struct.unpack(HEADER_FORMAT, raw_tcp_pkt[:20])
 
         fin = flag_byte & 1 == 1
         syn = flag_byte & 1 << 1 == 1 << 1
