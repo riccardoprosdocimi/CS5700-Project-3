@@ -128,3 +128,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# IDE generated files
+.vscode/
+.idea/

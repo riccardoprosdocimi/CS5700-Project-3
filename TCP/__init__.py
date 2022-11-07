@@ -172,34 +172,24 @@ class TCPPacket:
 
     @staticmethod
     def unpack(ip_pkt, raw_tcp_pkt):
-        src_port_raw = raw_tcp_pkt[0:2]
-        (src_port,) = struct.unpack("!H", src_port_raw)
+        (
+            src_port,
+            dst_port,
+            seq_num,
+            ack_num,
+            _,  # don't need header length
+            flag_byte,
+            adv_wnd,
+            checksum,
+            urg,
+        ) = struct.unpack("!HHIIBBHHH", raw_tcp_pkt[:20])
 
-        dst_port_raw = raw_tcp_pkt[2:4]
-        (dst_port,) = struct.unpack("!H", dst_port_raw)
-
-        seq_num_raw = raw_tcp_pkt[4:8]
-        (seq_num,) = struct.unpack("!I", seq_num_raw)
-
-        ack_num_raw = raw_tcp_pkt[8:12]
-        (ack_num,) = struct.unpack("!I", ack_num_raw)
-
-        flag_block_raw = raw_tcp_pkt[12:14]
-        (flag_block,) = struct.unpack("!2s", flag_block_raw)
-        flag_bits = bin(int(hexlify(flag_block), base=16))
-
-        fin = flag_bits[-1] == "1"
-        syn = flag_bits[-2] == "1"
-        rst = flag_bits[-3] == "1"
-        psh = flag_bits[-4] == "1"
-        ack = flag_bits[-5] == "1"
-        urg = flag_bits[-6] == "1"
-
-        adv_wnd_raw = raw_tcp_pkt[14:16]
-        (adv_wnd,) = struct.unpack("!H", adv_wnd_raw)
-
-        checksum_raw = raw_tcp_pkt[16:18]
-        (checksum,) = struct.unpack("!H", checksum_raw)
+        fin = flag_byte & 1 == 1
+        syn = flag_byte & 1 << 1 == 1 << 1
+        rst = flag_byte & 1 << 2 == 1 << 2
+        psh = flag_byte & 1 << 3 == 1 << 3
+        ack = flag_byte & 1 << 4 == 1 << 4
+        urg = flag_byte & 1 << 5 == 1 << 5
 
         tcp_pkt = TCPPacket(
             src_host=ip_pkt.src,

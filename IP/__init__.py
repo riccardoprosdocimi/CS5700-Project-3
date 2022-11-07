@@ -72,29 +72,25 @@ class IPPacket:
 
     @staticmethod
     def unpack(raw_pkt):
-        raw_ip_header = raw_pkt[14:35]
-        total_length_raw = raw_ip_header[2:4]
-        (total_length,) = struct.unpack("!H", total_length_raw)
-        data = raw_pkt[35:]
-        pkt_id_raw = raw_ip_header[4:6]
-        (pkt_id,) = struct.unpack("!H", pkt_id_raw)
+        (
+            ver_hl,
+            _,  # don't need TOS
+            _,  # don't need total length
+            pkt_id,
+            _,  # don't need flags + fragment offset
+            ttl,
+            protocol,
+            checksum,
+            src_ip,
+            dst_ip,
+        ) = struct.unpack("!BBHHHBBH4s4s", raw_pkt[:20])
 
-        ttl_raw = raw_ip_header[8:9]
-        (ttl,) = struct.unpack("!c", ttl_raw)
-        ttl = int(hexlify(ttl), base=16)
+        if ver_hl != 0x45:
+            print("not IPv4")
 
-        protocol_raw = raw_ip_header[9:10]
-        (protocol,) = struct.unpack("!c", protocol_raw)
-        protocol = int(hexlify(protocol), base=16)
-
-        checksum_raw = raw_ip_header[10:12]
-        (checksum,) = struct.unpack("!H", checksum_raw)
-
-        src_ip_raw = raw_ip_header[12:16]
-        src_ip = socket.inet_ntoa(src_ip_raw)
-
-        dst_ip_raw = raw_ip_header[16:20]
-        dst_ip = socket.inet_ntoa(dst_ip_raw)
+        src_ip = socket.inet_ntoa(src_ip)
+        dst_ip = socket.inet_ntoa(dst_ip)
+        data = raw_pkt[20:]
 
         ip_packet = IPPacket(
             dst=dst_ip,
