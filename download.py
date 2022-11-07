@@ -17,6 +17,8 @@ def download(url: str):
 
     get_req = HttpRequest(target=path)
     get_req.header("Host", dst_host)
+    get_req.header("Accept", "*/*")
     http_pkt = get_req.build()
 
     tcp_socket.send(http_pkt=http_pkt)
+    tcp_socket.recv()

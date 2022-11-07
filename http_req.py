@@ -49,12 +49,12 @@ class HttpRequest:
 
 	def build(self) -> str:
 		# Build a HTTP request string out of the given params.
-		request = f"{self.method} {self.target} HTTP/{HttpRequest.HTTP_VERSION}\n"
+		request = f"{self.method} {self.target} HTTP/{HttpRequest.HTTP_VERSION}\r\n"
 
 		for key, val in self.headers.items():
-			request += f"{key}: {val}\n"
+			request += f"{key}: {val}\r\n"
 
 		if self.payload:
-			request += "\n" + self.payload
+			request += "\r\n" + self.payload
 
-		return request + "\n"
+		return request + "\r\n"
