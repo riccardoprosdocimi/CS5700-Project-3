@@ -37,7 +37,7 @@ class TCPSocket:
         self.send_pkt(syn_pkt)
 
         recvd_pkt = self.recv_pkt()
-        if recvd_pkt and self.is_syn_ack(recvd_pkt):
+        if recvd_pkt and recvd_pkt.syn and recvd_pkt.ack:
             self.send_ack()
             return True
         else:
@@ -66,7 +66,11 @@ class TCPSocket:
                 print("Handle error when packet is null")
                 return
 
-            if recvd_pkt.ack and recvd_pkt.seq_num not in window:
+            if (
+                recvd_pkt.ack
+                and recvd_pkt.seq_num not in window
+                and recvd_pkt.http_packet
+            ):
                 window[recvd_pkt.seq_num] = recvd_pkt.http_packet
                 self.send_ack()
 
@@ -123,7 +127,3 @@ class TCPSocket:
         pkt.ack_num = self.ack_num
         pkt.adv_wnd = self.adv_wnd
         return pkt
-
-    @staticmethod
-    def is_syn_ack(tcp_pkt: TCPPacket) -> bool:
-        return tcp_pkt.syn and tcp_pkt.ack
