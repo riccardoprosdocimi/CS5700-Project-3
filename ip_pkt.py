@@ -1,10 +1,7 @@
-from binascii import hexlify
 from random import randint
 from utils import csum
 import socket
 import struct
-
-from TCP import TCPPacket
 
 HEADER_SIZE = 20  # IP header size = 20 bytes
 HEADER_FORMAT = "!BBHHHBBH4s4s"
@@ -54,7 +51,7 @@ class IPPacket:
             self.service_type,
             self.total_length,
             self.id,
-            self.flags,  # Flags + fragment offset
+            0,  # Flags + fragment offset
             self.ttl,
             self.protocol,
             self.checksum,
@@ -72,29 +69,22 @@ class IPPacket:
 
     @staticmethod
     def unpack(raw_pkt):
-        raw_ip_header = raw_pkt[14:35]
-        total_length_raw = raw_ip_header[2:4]
-        (total_length,) = struct.unpack("!H", total_length_raw)
-        data = raw_pkt[35:]
-        pkt_id_raw = raw_ip_header[4:6]
-        (pkt_id,) = struct.unpack("!H", pkt_id_raw)
+        (
+            _,  # don't need version + header length
+            _,  # don't need TOS
+            _,  # don't need total length
+            pkt_id,
+            _,  # don't need flags + fragment offset
+            ttl,
+            protocol,
+            checksum,
+            src_ip,
+            dst_ip,
+        ) = struct.unpack(HEADER_FORMAT, raw_pkt[:20])
 
-        ttl_raw = raw_ip_header[8:9]
-        (ttl,) = struct.unpack("!c", ttl_raw)
-        ttl = int(hexlify(ttl), base=16)
-
-        protocol_raw = raw_ip_header[9:10]
-        (protocol,) = struct.unpack("!c", protocol_raw)
-        protocol = int(hexlify(protocol), base=16)
-
-        checksum_raw = raw_ip_header[10:12]
-        (checksum,) = struct.unpack("!H", checksum_raw)
-
-        src_ip_raw = raw_ip_header[12:16]
-        src_ip = socket.inet_ntoa(src_ip_raw)
-
-        dst_ip_raw = raw_ip_header[16:20]
-        dst_ip = socket.inet_ntoa(dst_ip_raw)
+        src_ip = socket.inet_ntoa(src_ip)
+        dst_ip = socket.inet_ntoa(dst_ip)
+        data = raw_pkt[20:]
 
         ip_packet = IPPacket(
             dst=dst_ip,

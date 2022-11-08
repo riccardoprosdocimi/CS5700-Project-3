@@ -1,48 +1,17 @@
 #!/usr/bin/env python3
 
-from IP import IPPacket
-import socket
-from utils import get_local_ip
+from sys import argv, exit
+from download import download
 
 
-from TCP import TCPPacket
-import socket
-
-CLIENT_PORT = 6969
-
-
-def recv():
-    recv_sock = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x800))
-
-    while True:
-        raw_pkt, _ = recv_sock.recvfrom(2048)
-        ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
-        if ip_pkt.protocol == socket.IPPROTO_TCP and ip_pkt.dst == get_local_ip():
-            tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
-            if tcp_pkt.dst_port == CLIENT_PORT:
-                print(tcp_pkt)
-
-
-def send():
-    send_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-    local_ip = get_local_ip()
-
-    dst_host, dst_port = ("204.44.192.60", 80)
-
-    tcp_pkt = TCPPacket(
-        src_host=local_ip, src_port=CLIENT_PORT, dst_host=dst_host, dst_port=dst_port
-    )
-    tcp_pkt.seq_num = 3616486384
-    tcp_pkt.syn = True
-    tcp_pkt_raw = tcp_pkt.pack_fields()
-
-    ip_pkt = IPPacket(src=local_ip, dst=dst_host, data=tcp_pkt_raw)
-    ip_pkt_raw = ip_pkt.pack_fields()
-
-    bytes_sent = send_sock.sendto(ip_pkt_raw, (dst_host, dst_port))
-    assert len(ip_pkt_raw) == bytes_sent
+def main():
+    if len(argv) != 2:
+        print("Please provide destination hostname")
+        exit(1)
+    
+    url = argv[1]
+    download(url=url)
 
 
 if __name__ == "__main__":
-    send()
-    recv()
+    main()
