@@ -70,7 +70,7 @@ class IPPacket:
     @staticmethod
     def unpack(raw_pkt):
         (
-            ver_hl,
+            _,  # don't need version + header length
             _,  # don't need TOS
             _,  # don't need total length
             pkt_id,
@@ -81,9 +81,6 @@ class IPPacket:
             src_ip,
             dst_ip,
         ) = struct.unpack(HEADER_FORMAT, raw_pkt[:20])
-
-        if ver_hl != 0x45:
-            print("not IPv4")
 
         src_ip = socket.inet_ntoa(src_ip)
         dst_ip = socket.inet_ntoa(dst_ip)

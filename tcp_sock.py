@@ -42,13 +42,13 @@ class TCPSocket:
             return True
         else:
             # TODO: Handle error when SYN/ACK is not received
-            # Probably want to close connectio using FIN/ACK
+            # Probably want to close connection using FIN/ACK
             return False
 
     def close(self):
         fin_ack_pkt = self.new_tcp_pkt()
-        fin_ack_pkt.ack = True
         fin_ack_pkt.fin = True
+        fin_ack_pkt.ack = True
         self.send_pkt(fin_ack_pkt)
 
     def send(self, http_pkt: str):
