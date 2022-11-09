@@ -33,8 +33,13 @@ class TCPSocket:
         self.seq_num = randint(0, 2**32 - 1)
         self.ack_num = 0
 
-        self.last_pkt = None
-        self.counter = 3
+        self.last_pkt = None  # cache last packet for retransmission
+        self.counter = 3  # retransmit 3 times, then end connection
+
+        # congestion control
+        self.cwnd = 1
+        self.dst_adv_wnd = 0
+        self.ssthresh = self.dst_adv_wnd
 
     def try_port(self):
         test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,6 +91,10 @@ class TCPSocket:
                 and recvd_pkt.seq_num not in window
                 and recvd_pkt.payload
             ):
+                if self.cwnd < self.ssthresh:
+                    self.cwnd += 1
+                else:
+                    self.cwnd += 1 / self.cwnd
                 window[recvd_pkt.seq_num] = recvd_pkt.payload
                 self.send_ack()
 
@@ -124,6 +133,7 @@ class TCPSocket:
                 if ip_pkt and ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                     if tcp_pkt and tcp_pkt.dst_port == self.src_port:
+                        self.dst_adv_wnd = tcp_pkt.adv_wnd
                         self.counter = 3
                         self.seq_num = tcp_pkt.ack_num
                         self.ack_num = tcp_pkt.seq_num + 1
@@ -132,6 +142,8 @@ class TCPSocket:
                 if self.counter > 0:
                     self.send_pkt(self.last_pkt)
                     self.counter -= 1
+                    self.ssthresh = self.cwnd / 2
+                    self.cwnd = 1
                 else:
                     print("Connection failed", file=sys.stderr)
                     self.close()
