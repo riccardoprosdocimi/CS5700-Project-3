@@ -101,8 +101,7 @@ class IPPacket:
         zero_csum_raw_pkt = (
                 raw_pkt[:10]
                 + struct.pack("!H", 0)
-                + raw_pkt[12:]
-                + data
+                + raw_pkt[12:20]
         )
         check_checksum = csum(zero_csum_raw_pkt)
         print(hex(checksum))
