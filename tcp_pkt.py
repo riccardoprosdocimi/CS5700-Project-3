@@ -134,5 +134,5 @@ class TCPPacket:
         if check_checksum == checksum:
             return tcp_pkt
         else:
-            print("csum incorrect")
+            print("TCP checksum incorrect")
             return None

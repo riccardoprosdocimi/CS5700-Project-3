@@ -121,7 +121,7 @@ class TCPSocket:
                 raw_pkt, _ = self.recv_sock.recvfrom(65535)
                 ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
 
-                if ip_pkt.protocol == socket.IPPROTO_TCP:
+                if ip_pkt and ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                     if tcp_pkt and tcp_pkt.dst_port == self.src_port:
                         self.counter = 3

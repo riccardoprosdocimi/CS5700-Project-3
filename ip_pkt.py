@@ -98,4 +98,17 @@ class IPPacket:
         ip_packet.protocol = protocol
         ip_packet.checksum = checksum
 
-        return ip_packet
+        zero_csum_raw_pkt = (
+                raw_pkt[:10]
+                + struct.pack("!H", 0)
+                + raw_pkt[12:]
+                + data
+        )
+        check_checksum = csum(zero_csum_raw_pkt)
+        print(hex(checksum))
+        print(hex(check_checksum))
+        if check_checksum == checksum:
+            return ip_packet
+        else:
+            print("IP checksum incorrect")
+            return None
