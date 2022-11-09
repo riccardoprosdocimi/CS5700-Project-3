@@ -17,7 +17,6 @@ class TCPSocket:
             socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
         )
         self.recv_sock.settimeout(self.rto)
-        # TODO: try catch block to catch timeout exception
 
         self.send_sock = socket.socket(
             socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW
@@ -38,10 +37,8 @@ class TCPSocket:
         while True:
             try:
                 test_sock.bind((TEST, self.src_port))
-                print("port is open")
                 break
             except:
-                print("port is close")
                 self.src_port = randint(1025, 65535)
         test_sock.close()
 
@@ -56,8 +53,7 @@ class TCPSocket:
             self.send_ack()
             return True
         else:
-            # TODO: Handle error when SYN/ACK is not received
-            # Probably want to close connection using FIN/ACK
+            self.close()
             return False
 
     def close(self):
@@ -115,7 +111,7 @@ class TCPSocket:
         assert len(ip_pkt_raw) == bytes_sent
 
     def recv_pkt(self) -> Optional[TCPPacket]:  # returns None on timeout
-        while True:
+        for _ in range(3):
             try:
                 raw_pkt, _ = self.recv_sock.recvfrom(65535)
                 ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
@@ -126,8 +122,10 @@ class TCPSocket:
                         self.seq_num = tcp_pkt.ack_num
                         self.ack_num = tcp_pkt.seq_num + 1
                         return tcp_pkt
-            except socket.timeout:
-                return None
+            except TimeoutError:
+                continue
+                # TODO: retransmit (3WHS or standard packet?)
+        return None
 
     def new_tcp_pkt(self, http_pkt: str = "") -> TCPPacket:
         pkt = TCPPacket(
