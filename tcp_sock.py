@@ -1,10 +1,11 @@
 import socket
 from random import randint
 from typing import Optional
-
 from utils import get_local_ip
 from tcp_pkt import TCPPacket
 from ip_pkt import IPPacket
+
+LOCAL_HOST = "127.0.0.1"
 
 
 class TCPSocket:
@@ -16,6 +17,7 @@ class TCPSocket:
             socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
         )
         self.recv_sock.settimeout(self.rto)
+        # TODO: try catch block to catch timeout exception
 
         self.send_sock = socket.socket(
             socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW
@@ -26,9 +28,14 @@ class TCPSocket:
 
         self.src_host = get_local_ip()
         self.src_port = randint(1025, 65535)
+        # self.is_port_open()
 
         self.seq_num = randint(0, 2**32 - 1)
         self.ack_num = 0
+
+    def is_port_open(self):
+        if self.send_sock.connect_ex((LOCAL_HOST, self.src_port)) != 0:
+            self.src_port = randint(1025, 65535)
 
     def connect(self) -> bool:
         # 3-way handshake
@@ -69,9 +76,9 @@ class TCPSocket:
             if (
                 recvd_pkt.ack
                 and recvd_pkt.seq_num not in window
-                and recvd_pkt.http_packet
+                and recvd_pkt.payload
             ):
-                window[recvd_pkt.seq_num] = recvd_pkt.http_packet
+                window[recvd_pkt.seq_num] = recvd_pkt.payload
                 self.send_ack()
 
                 if recvd_pkt.fin or recvd_pkt.rst:
@@ -92,7 +99,7 @@ class TCPSocket:
 
     def send_pkt(self, tcp_pkt: TCPPacket):
         ip_pkt = IPPacket(
-            src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack_fields()
+            src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack()
         )
         ip_pkt_raw = ip_pkt.pack_fields()
 
@@ -120,7 +127,7 @@ class TCPSocket:
             src_port=self.src_port,
             dst_host=self.dst_host,
             dst_port=self.dst_port,
-            http_packet=http_pkt,
+            payload=http_pkt,
         )
 
         pkt.seq_num = self.seq_num
