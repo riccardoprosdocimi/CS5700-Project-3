@@ -1,4 +1,3 @@
-from random import randint
 from utils import csum
 import socket
 import struct
@@ -8,7 +7,7 @@ PSEUDO_HEADER_FORMAT = "!4s4sBBH"
 
 
 class TCPPacket:
-    def __init__(self, src_host, src_port, dst_host, dst_port, http_packet=""):
+    def __init__(self, src_host, src_port, dst_host, dst_port, payload=""):
         self.src_host = src_host
         self.src_port = src_port
         self.dst_host = dst_host
@@ -25,10 +24,10 @@ class TCPPacket:
         self.urg = False  # urgent flag
         self.adv_wnd = 65535  # max window size
         self.checksum = 0
-        self.urgent_pointer = 0
+        self.urg_ptr = 0
         self.packet = None
         self.pseudo_header = None
-        self.http_packet = http_packet.encode()
+        self.payload = payload.encode()
 
     def create_flags(self):
         if self.fin:
@@ -44,7 +43,7 @@ class TCPPacket:
         if self.urg:
             self.flags |= 1 << 5
 
-    def pack_fields(self):
+    def pack(self):
         self.create_flags()
         self.packet = struct.pack(
             HEADER_FORMAT,
@@ -56,7 +55,7 @@ class TCPPacket:
             self.flags,  # flags
             self.adv_wnd,  # window
             self.checksum,  # checksum
-            self.urgent_pointer,  # urgent pointer
+            self.urg_ptr,  # urgent pointer
         )
         reserved = 0
         self.pseudo_header = struct.pack(
@@ -65,14 +64,14 @@ class TCPPacket:
             socket.inet_aton(self.dst_host),  # destination address
             reserved,
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.packet) + len(self.http_packet),  # packet length
+            len(self.packet) + len(self.payload),  # packet length
         )
-        self.checksum = csum(self.pseudo_header + self.packet + self.http_packet)
+        self.checksum = csum(self.pseudo_header + self.packet + self.payload)
         self.packet = (
             self.packet[:16]
             + struct.pack("!H", self.checksum)
             + self.packet[18:]
-            + self.http_packet
+            + self.payload
         )
         return self.packet
 
@@ -107,7 +106,7 @@ class TCPPacket:
         tcp_pkt.ack_num = ack_num
         tcp_pkt.adv_wnd = adv_wnd
         tcp_pkt.checksum = checksum
-        tcp_pkt.http_packet = raw_tcp_pkt[20:]
+        tcp_pkt.payload = raw_tcp_pkt[20:]
 
         tcp_pkt.fin = fin
         tcp_pkt.syn = syn
