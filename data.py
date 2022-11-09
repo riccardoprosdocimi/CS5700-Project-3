@@ -37,7 +37,7 @@ class Data:
     def get_binary_status(self):
         status_line_end_index = self.message.find(b'self.newline')
         status_line = self.message[:status_line_end_index]
-        status_line_list = status_line.split(b'" "')
+        status_line_list = status_line.split(b' ')
         self.status = int(status_line_list[1])
 
     def check_status(self):
