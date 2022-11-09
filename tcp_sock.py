@@ -5,7 +5,7 @@ from utils import get_local_ip
 from tcp_pkt import TCPPacket
 from ip_pkt import IPPacket
 
-LOCAL_HOST = "127.0.0.1"
+TEST = "0.0.0.0"
 
 
 class TCPSocket:
@@ -28,14 +28,22 @@ class TCPSocket:
 
         self.src_host = get_local_ip()
         self.src_port = randint(1025, 65535)
-        # self.is_port_open()
+        self.try_port()
 
         self.seq_num = randint(0, 2**32 - 1)
         self.ack_num = 0
 
-    def is_port_open(self):
-        if self.send_sock.connect_ex((LOCAL_HOST, self.src_port)) != 0:
-            self.src_port = randint(1025, 65535)
+    def try_port(self):
+        test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while True:
+            try:
+                test_sock.bind((TEST, self.src_port))
+                print("port is open")
+                break
+            except:
+                print("port is close")
+                self.src_port = randint(1025, 65535)
+        test_sock.close()
 
     def connect(self) -> bool:
         # 3-way handshake
