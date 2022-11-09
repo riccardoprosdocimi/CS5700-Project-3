@@ -35,7 +35,7 @@ class Data:
         self.status = int(status_line_list[1])
 
     def get_binary_status(self):
-        status_line_end_index = self.message.find(b'self.newline')
+        status_line_end_index = self.message.find(self.newline)
         status_line = self.message[:status_line_end_index]
         status_line_list = status_line.split(b' ')
         self.status = int(status_line_list[1])
@@ -54,7 +54,7 @@ class Data:
             self.content_type = "text"
 
     def save_file(self):
-        if "/" not in self.path:
+        if self.path == "/":
             file_name = "index.html"
         else:
             file_name = self.path.split("/")[-1]
