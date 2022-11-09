@@ -1,6 +1,6 @@
-from utils import csum
 import socket
 import struct
+from utils import csum
 
 HEADER_FORMAT = "!HHIIBBHHH"
 PSEUDO_HEADER_FORMAT = "!4s4sBBH"
@@ -115,4 +115,15 @@ class TCPPacket:
         tcp_pkt.ack = ack
         tcp_pkt.urg = urg
 
-        return tcp_pkt
+        zero_csum_raw_tcp_pkt = (
+                raw_tcp_pkt[:16]
+                + struct.pack("!H", 0)
+                + raw_tcp_pkt[18:]
+        )
+        print(hex(checksum))
+        print(hex(csum(zero_csum_raw_tcp_pkt)))
+        if csum(zero_csum_raw_tcp_pkt) == checksum:
+            return tcp_pkt
+        else:
+            print("csum incorrect")
+            return None
