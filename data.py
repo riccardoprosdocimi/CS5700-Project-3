@@ -18,7 +18,7 @@ class Data:
     def build_get_message(self):
         self.request = "GET" + " " + self.path + " " + self.http + self.newline \
                        + "Connection: Keep-Alive" + self.newline \
-                       + "Host:" + " " + self.host + self.newline \
+                       + "Host:" + " " + self.host \
                        + self.newline + self.newline
         return self.request
 
