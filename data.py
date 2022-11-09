@@ -19,8 +19,6 @@ class Data:
         self.request = "GET" + " " + self.path + " " + self.http + self.newline \
                        + "Connection: Keep-Alive" + self.newline \
                        + "Host:" + " " + self.host + self.newline \
-                       + "Accept-Encoding: identity" + self.newline \
-                       + "Accept: */*" + self.newline \
                        + self.newline + self.newline
         return self.request
 
