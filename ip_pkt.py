@@ -104,10 +104,7 @@ class IPPacket:
                 + raw_pkt[12:20]
         )
         check_checksum = csum(zero_csum_raw_pkt)
-        print(hex(checksum))
-        print(hex(check_checksum))
         if check_checksum == checksum:
             return ip_packet
         else:
-            print("IP checksum incorrect")
             return None

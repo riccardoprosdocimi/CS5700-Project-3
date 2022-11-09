@@ -86,17 +86,15 @@ class TCPSocket:
                 print("Handle error when packet is null")
                 return
 
-            if (
-                recvd_pkt.ack
-                and recvd_pkt.seq_num not in window
-                and recvd_pkt.payload
-            ):
+            if recvd_pkt.ack:
                 if self.cwnd < self.ssthresh:
                     self.cwnd += 1
                 else:
                     self.cwnd += 1 / self.cwnd
-                window[recvd_pkt.seq_num] = recvd_pkt.payload
-                self.send_ack()
+
+                if recvd_pkt.seq_num not in window and recvd_pkt.payload:
+                    window[recvd_pkt.seq_num] = recvd_pkt.payload
+                    self.send_ack()
 
                 if recvd_pkt.fin or recvd_pkt.rst:
                     self.close()
@@ -116,9 +114,7 @@ class TCPSocket:
 
     def send_pkt(self, tcp_pkt: TCPPacket):
         self.last_pkt = tcp_pkt
-        ip_pkt = IPPacket(
-            src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack()
-        )
+        ip_pkt = IPPacket(src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack())
         ip_pkt_raw = ip_pkt.pack_fields()
 
         bytes_sent = self.send_sock.sendto(ip_pkt_raw, (self.dst_host, self.dst_port))
