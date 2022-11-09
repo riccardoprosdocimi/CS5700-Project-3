@@ -115,14 +115,23 @@ class TCPPacket:
         tcp_pkt.ack = ack
         tcp_pkt.urg = urg
 
+        pseudo_header = struct.pack(
+            PSEUDO_HEADER_FORMAT,
+            socket.inet_aton(ip_pkt.src),
+            socket.inet_aton(ip_pkt.dst),
+            0,  # reserved
+            socket.IPPROTO_TCP,
+            len(raw_tcp_pkt),  # payload included
+        )
         zero_csum_raw_tcp_pkt = (
                 raw_tcp_pkt[:16]
                 + struct.pack("!H", 0)
                 + raw_tcp_pkt[18:]
         )
+        check_checksum = csum(pseudo_header + zero_csum_raw_tcp_pkt)
         print(hex(checksum))
-        print(hex(csum(zero_csum_raw_tcp_pkt)))
-        if csum(zero_csum_raw_tcp_pkt) == checksum:
+        print(hex(check_checksum))
+        if check_checksum == checksum:
             return tcp_pkt
         else:
             print("csum incorrect")

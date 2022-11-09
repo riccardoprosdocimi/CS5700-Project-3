@@ -1,4 +1,5 @@
 import socket
+import sys
 from random import randint
 from typing import Optional
 from utils import get_local_ip
@@ -31,6 +32,9 @@ class TCPSocket:
 
         self.seq_num = randint(0, 2**32 - 1)
         self.ack_num = 0
+
+        self.last_pkt = None
+        self.counter = 3
 
     def try_port(self):
         test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -102,6 +106,7 @@ class TCPSocket:
         self.send_pkt(ack_pkt)
 
     def send_pkt(self, tcp_pkt: TCPPacket):
+        self.last_pkt = tcp_pkt
         ip_pkt = IPPacket(
             src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack()
         )
@@ -111,21 +116,26 @@ class TCPSocket:
         assert len(ip_pkt_raw) == bytes_sent
 
     def recv_pkt(self) -> Optional[TCPPacket]:  # returns None on timeout
-        for _ in range(3):
+        while True:
             try:
                 raw_pkt, _ = self.recv_sock.recvfrom(65535)
                 ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
 
                 if ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
-                    if tcp_pkt.dst_port == self.src_port:
+                    if tcp_pkt and tcp_pkt.dst_port == self.src_port:
+                        self.counter = 3
                         self.seq_num = tcp_pkt.ack_num
                         self.ack_num = tcp_pkt.seq_num + 1
                         return tcp_pkt
             except TimeoutError:
-                continue
-                # TODO: retransmit (3WHS or standard packet?)
-        return None
+                if self.counter > 0:
+                    self.send_pkt(self.last_pkt)
+                    self.counter -= 1
+                else:
+                    print("Connection failed", file=sys.stderr)
+                    self.close()
+                    sys.exit(1)
 
     def new_tcp_pkt(self, http_pkt: str = "") -> TCPPacket:
         pkt = TCPPacket(
