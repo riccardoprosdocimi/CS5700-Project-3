@@ -6,7 +6,7 @@ class Data:
     def __init__(self, host, path):
         self.path = path
         self.host = host
-        self.http = "HTTP/1.0"
+        self.http = "HTTP/1.1"
         self.newline = '\r\n'
         self.request = ""
         self.message = None

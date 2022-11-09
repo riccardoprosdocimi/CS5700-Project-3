@@ -129,10 +129,7 @@ class TCPPacket:
                 + raw_tcp_pkt[18:]
         )
         check_checksum = csum(pseudo_header + zero_csum_raw_tcp_pkt)
-        print(hex(checksum))
-        print(hex(check_checksum))
         if check_checksum == checksum:
             return tcp_pkt
         else:
-            print("TCP checksum incorrect")
             return None

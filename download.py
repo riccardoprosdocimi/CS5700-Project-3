@@ -24,7 +24,6 @@ def download(url: str):
     get_req = Data(dst_host, path)
     http_req = get_req.build_get_message()
     tcp_socket.send(http_req)
-    print(get_req.request)
     data = tcp_socket.recv()
     get_req.get_content_type(data)
     get_req.save_file()
