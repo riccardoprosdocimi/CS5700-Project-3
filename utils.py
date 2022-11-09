@@ -20,10 +20,10 @@ def get_local_ip():
 
 def csum(packet):
     checksum = 0  # initialize checksum to zero
-    words = len(packet) // 2
+    words = len(packet) // 2  # calculate number of 16-bit chunks
     for chunk in struct.unpack("!%sH" % words, packet[:words * 2]):
-        checksum += chunk  # add up 16-bit words
-    if len(packet) % 2 != 0:
+        checksum += chunk  # add up 16-bit chunks
+    if len(packet) % 2 != 0:  # if packet length is odd
         checksum += 0  # add leftover byte
     checksum = (checksum >> 16) + (checksum & 0xffff)
     checksum += checksum >> 16  # fold 32-bit into 16-bit
