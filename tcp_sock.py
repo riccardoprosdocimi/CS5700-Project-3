@@ -1,17 +1,19 @@
+import re
 import socket
 import sys
 from random import randint
-from typing import Optional
 from utils import get_local_ip
 from tcp_pkt import TCPPacket
 from ip_pkt import IPPacket
 
 TEST = "0.0.0.0"
+MAX_SSTHRESH = 1000
+MAX_PKT_LENGTH = 65535
 
 
 class TCPSocket:
     def __init__(self, dst_host: str):
-        self.adv_wnd = 65535
+        self.adv_wnd = MAX_PKT_LENGTH  # max unit size for just the syn packet
         self.rto = 60  # seconds
 
         self.recv_sock = socket.socket(
@@ -27,7 +29,7 @@ class TCPSocket:
         self.dst_port = 80  # HTTP
 
         self.src_host = get_local_ip()
-        self.src_port = randint(1025, 65535)
+        self.src_port = randint(1025, MAX_PKT_LENGTH)
         self.try_port()
 
         self.seq_num = randint(0, 2**32 - 1)
@@ -39,7 +41,7 @@ class TCPSocket:
         # congestion control
         self.cwnd = 1
         self.dst_adv_wnd = 0
-        self.ssthresh = self.dst_adv_wnd
+        self.ssthresh = MAX_SSTHRESH
 
     def try_port(self):
         test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,7 +50,7 @@ class TCPSocket:
                 test_sock.bind((TEST, self.src_port))
                 break
             except:
-                self.src_port = randint(1025, 65535)
+                self.src_port = randint(1025, MAX_PKT_LENGTH)
         test_sock.close()
 
     def connect(self) -> bool:
@@ -81,18 +83,16 @@ class TCPSocket:
 
         while True:
             recvd_pkt = self.recv_pkt()
-            if not recvd_pkt:
-                # TODO handle error
-                print("Handle error when packet is null")
-                return
 
             if recvd_pkt.ack:
-                if self.cwnd < self.ssthresh:
-                    self.cwnd += 1
-                else:
-                    self.cwnd += 1 / self.cwnd
+                # if self.cwnd < self.ssthresh:  # modified slow start
+                #     self.cwnd += 1
+                # else:
+                #     self.cwnd += 1 / self.cwnd  # congestion avoidance
 
                 if recvd_pkt.seq_num not in window and recvd_pkt.payload:
+                    if b'Transfer-Encoding: chunked' in recvd_pkt.payload:
+
                     window[recvd_pkt.seq_num] = recvd_pkt.payload
                     self.send_ack()
 
@@ -120,32 +120,38 @@ class TCPSocket:
         bytes_sent = self.send_sock.sendto(ip_pkt_raw, (self.dst_host, self.dst_port))
         assert len(ip_pkt_raw) == bytes_sent
 
-    def recv_pkt(self) -> Optional[TCPPacket]:  # returns None on timeout
+    def recv_pkt(self):
         while True:
             try:
-                raw_pkt, _ = self.recv_sock.recvfrom(65535)
+                raw_pkt, _ = self.recv_sock.recvfrom(MAX_PKT_LENGTH)
                 ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
 
                 if ip_pkt and ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                     if tcp_pkt and tcp_pkt.dst_port == self.src_port:
                         self.dst_adv_wnd = tcp_pkt.adv_wnd
+                        # if tcp_pkt.adv_wnd > MAX_SSTHRESH:
+                        #     self.ssthresh = MAX_SSTHRESH
+                        # else:
+                        #     self.ssthresh = tcp_pkt.adv_wnd
                         self.counter = 3
                         self.seq_num = tcp_pkt.ack_num
                         self.ack_num = tcp_pkt.seq_num + 1
                         return tcp_pkt
             except TimeoutError:
-                if self.counter > 0:
-                    self.send_pkt(self.last_pkt)
-                    self.counter -= 1
-                    self.ssthresh = self.cwnd / 2
-                    self.cwnd = 1
+                if self.counter > 0:  # 3 retransmission max
+                    self.send_pkt(self.last_pkt)  # retransmit the last packet sent
+                    self.counter -= 1  # 1 retransmission happened
+                    # multiplicative decrease
+                    # self.ssthresh = self.cwnd / 2
+                    # self.cwnd = 1
                 else:
                     print("Connection failed", file=sys.stderr)
                     self.close()
                     sys.exit(1)
 
     def new_tcp_pkt(self, http_pkt: str = "") -> TCPPacket:
+        # self.adv_wnd = min(self.cwnd, self.ssthresh)
         pkt = TCPPacket(
             src_host=self.src_host,
             src_port=self.src_port,
