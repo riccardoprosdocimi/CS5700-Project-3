@@ -91,8 +91,6 @@ class TCPSocket:
                 #     self.cwnd += 1 / self.cwnd  # congestion avoidance
 
                 if recvd_pkt.seq_num not in window and recvd_pkt.payload:
-                    if b'Transfer-Encoding: chunked' in recvd_pkt.payload:
-
                     window[recvd_pkt.seq_num] = recvd_pkt.payload
                     self.send_ack()
 
