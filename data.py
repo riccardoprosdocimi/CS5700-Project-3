@@ -18,8 +18,9 @@ class Data:
     def build_get_message(self):
         self.request = "GET" + " " + self.path + " " + self.http + self.newline \
                        + "Host:" + " " + self.host + self.newline \
-                       + "Connection: Keep-Alive" + self.newline \
+                       + "Connection: Close" + self.newline \
                        + self.newline + self.newline
+        # Connection: close because we should ask the server to close the connection once the response is sent
         return self.request
 
     def get_html(self):
