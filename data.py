@@ -54,10 +54,10 @@ class Data:
             self.content_type = "text"
 
     def save_file(self):
-        if self.path == "/":
+        file_name = self.path.split("/")[-1]
+        if file_name in ("/", ""):
             file_name = "index.html"
-        else:
-            file_name = self.path.split("/")[-1]
+
         if self.content_type == "binary":
             self.get_binary_status()
             self.check_status()
