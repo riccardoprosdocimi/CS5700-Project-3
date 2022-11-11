@@ -100,10 +100,9 @@ class Data:
         Saves the HTTP message in a file located in the local directory.
         """
 
-        if self.path == "/":  # if there's no path
+        file_name = self.path.split("/")[-1]
+        if file_name in ("/", ""):  # if there's no path
             file_name = "index.html"  # call the file with a default name
-        else:
-            file_name = self.path.split("/")[-1]
         if self.content_type == "binary":
             self.get_binary_status()
             self.check_status()
