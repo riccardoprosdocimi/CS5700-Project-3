@@ -67,7 +67,7 @@ class Data:
         Retrieves the HTTP status code when the message is in binary.
         """
 
-        status_line_end_index = self.message.find(b'self.newline')
+        status_line_end_index = self.message.find(self.newline)
         status_line = self.message[:status_line_end_index]
         status_line_list = status_line.split(b' ')
         self.status = int(status_line_list[1])
