@@ -1,4 +1,3 @@
-import re
 import socket
 import sys
 from random import randint
@@ -110,18 +109,17 @@ class TCPSocket:
         window = {}  # buffer
         while True:
             recvd_pkt = self.check_pkt()
-            if recvd_pkt.ack:  # if it's an ACK pkt
+            if recvd_pkt and recvd_pkt.ack:  # if it's an ACK pkt
 
-                # if self.cwnd < self.ssthresh:  # modified slow start
-                #     self.cwnd += 1
-                # else:
-                #     self.cwnd += 1 / self.cwnd  # congestion avoidance
+                if self.cwnd < self.ssthresh:  # modified slow start
+                    self.cwnd += 1
+                else:
+                    self.cwnd += 1 / self.cwnd  # congestion avoidance
 
-                if recvd_pkt.seq_num not in window and recvd_pkt.payload != "":  # check for duplicate packets
-                    if b'Transfer-Encoding: chunked' in recvd_pkt.payload:
-                        pass
-
-                if recvd_pkt.seq_num not in window and recvd_pkt.payload:
+                if recvd_pkt.seq_num not in window and recvd_pkt.payload:  # check for duplicate packets & None payloads
+                    # print(recvd_pkt.payload.find(b'\d\r\n'))
+                    # if b'Transfer-Encoding: chunked' in recvd_pkt.payload:
+                    #     recvd_pkt.payload.find(b'4000')
                     window[recvd_pkt.seq_num] = recvd_pkt.payload
                     self.send_ack()
                     window[recvd_pkt.seq_num] = recvd_pkt.payload  # add to buffer -> key=seq_num value=payload
@@ -171,10 +169,10 @@ class TCPSocket:
                 tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                 if tcp_pkt and tcp_pkt.dst_port == self.src_port:
                     self.dst_adv_wnd = tcp_pkt.adv_wnd
-                    # if tcp_pkt.adv_wnd > MAX_SSTHRESH:
-                    #     self.ssthresh = MAX_SSTHRESH
-                    # else:
-                    #     self.ssthresh = tcp_pkt.adv_wnd
+                    if tcp_pkt.adv_wnd > MAX_SSTHRESH:
+                        self.ssthresh = MAX_SSTHRESH
+                    else:
+                        self.ssthresh = tcp_pkt.adv_wnd
                     self.counter = 3
                     self.seq_num = tcp_pkt.ack_num
                     self.ack_num = tcp_pkt.seq_num + 1
@@ -184,8 +182,8 @@ class TCPSocket:
                 self.send_pkt(self.last_pkt)  # retransmit the last pkt sent
                 self.counter -= 1  # 1 retransmission happened
                 # multiplicative decrease
-                # self.ssthresh = self.cwnd / 2
-                # self.cwnd = 1
+                self.ssthresh = self.cwnd / 2
+                self.cwnd = 1
             else:  # no response from the server for 3 straight times
                 print("Connection failed", file=sys.stderr)
                 self.close()

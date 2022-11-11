@@ -1,7 +1,6 @@
 import socket
 import struct
-from utils import calculate_checksum
-from ip_pkt import IPPacket
+from ip_pkt import IPPacket, calculate_checksum
 
 HEADER_FORMAT = "!HHIIBBHHH"
 PSEUDO_HEADER_FORMAT = "!4s4sBBH"
@@ -150,7 +149,7 @@ class TCPPacket:
             socket.IPPROTO_TCP,
             len(raw_tcp_pkt),  # payload included
         )
-        zero_csum_raw_tcp_pkt = (  # reset the incoming pkt's checksum to 0
+        zero_csum_raw_tcp_pkt = (  # reset the incoming packet's checksum to 0
                 raw_tcp_pkt[:16]
                 + struct.pack("!H", 0)
                 + raw_tcp_pkt[18:]

@@ -1,7 +1,8 @@
-from random import randint
-from utils import calculate_checksum
 import socket
 import struct
+from random import randint
+from utils import calculate_checksum
+
 
 HEADER_SIZE = 20  # IP header size -> 20 bytes
 HEADER_FORMAT = "!BBHHHBBH4s4s"
@@ -127,7 +128,7 @@ class IPPacket:
         ip_pkt.ttl = ttl
         ip_pkt.protocol = protocol
         ip_pkt.checksum = checksum
-        zero_csum_raw_ip_pkt = (  # reset the incoming pkt's checksum to 0
+        zero_csum_raw_ip_pkt = (  # reset the incoming packet's checksum to 0
                 raw_pkt[:10]
                 + struct.pack("!H", 0)
                 + raw_pkt[12:20]
