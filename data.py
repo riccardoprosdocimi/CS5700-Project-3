@@ -24,6 +24,7 @@ class Data:
         self.content_length = str(0)
         self.status = 0
         self.content_type = ""
+        self.chunked = False
 
     def build_get_message(self) -> str:
         """
@@ -87,13 +88,35 @@ class Data:
 
         :param msg: the HTTP message
         """
-
         if b'Content-Type: text/x-log' in msg:
             self.message = msg
             self.content_type = "binary"
         else:
             self.message = msg.decode()
             self.content_type = "text"
+
+            if b'Transfer-Encoding: chunked' in msg:
+                self.chunked = True
+
+    @staticmethod
+    def decode_chunked_encoding(filename):
+        with open(filename, "r") as fd:
+            contents = fd.read()
+
+        output = ""
+        start = 0
+        while True:
+            new_line_loc = contents.index("\n", start)
+            chunk_size = int(contents[start:new_line_loc], base=16)
+            start = new_line_loc + 1  # +1 for new line
+            output += contents[start:start + chunk_size]
+            start = start + chunk_size + 1 # +1 for the new line
+            
+            if start == len(contents) - 1:
+                break
+
+        with open(filename, "w") as fd:
+            fd.write(output)
 
     def save_file(self):
         """
@@ -113,3 +136,6 @@ class Data:
             self.check_status()
             self.get_html()
             open(file_name, "w").write(self.content)
+
+            if self.chunked:
+                self.decode_chunked_encoding(file_name)
