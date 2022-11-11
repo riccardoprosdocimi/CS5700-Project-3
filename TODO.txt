@@ -1,4 +1,3 @@
-- Get rid of our names from the top of the files
 - Verify data length and total length calculation
 - Might need ret_addr from sock.recvfrom
 - The fuck does this mean:
@@ -7,6 +6,7 @@
     Does the protocol identifier match the contents of the encapsulated header?"
 - Fragment flag in IP headers
 - More robust error handling in IP.unpack when packet is not IPV4 (is this check even necessary since the socket type will likely only deliver IPv4 packets?)
+- do we need the get_nw_interface_name function?
 
 DONE:
 - Consolidate all the struct.unpack calls into one format string

@@ -1,13 +1,29 @@
 import socket
 import struct
-from utils import csum
+from utils import calculate_checksum
+from ip_pkt import IPPacket
 
 HEADER_FORMAT = "!HHIIBBHHH"
 PSEUDO_HEADER_FORMAT = "!4s4sBBH"
 
 
 class TCPPacket:
-    def __init__(self, src_host, src_port, dst_host, dst_port, payload=""):
+    """
+    This class represents a TCP pkt.
+    """
+
+    def __init__(self, src_host: str, src_port: int, dst_host: str, dst_port: int, payload: str = ""):
+        """
+        Instantiates a TCPPacket object to the given source address, source port, destination address, destination
+        port, and payload.
+
+        :param src_host: the source address
+        :param src_port: the source port
+        :param dst_host: the destination address
+        :param dst_port: the destination port
+        :param payload: the payload
+        """
+
         self.src_host = src_host
         self.src_port = src_port
         self.dst_host = dst_host
@@ -29,7 +45,11 @@ class TCPPacket:
         self.pseudo_header = None
         self.payload = payload.encode()
 
-    def create_flags(self):
+    def set_flags(self):
+        """
+        Sets the flags of this TCP pkt.
+        """
+
         if self.fin:
             self.flags |= 1
         if self.syn:
@@ -43,8 +63,12 @@ class TCPPacket:
         if self.urg:
             self.flags |= 1 << 5
 
-    def pack(self):
-        self.create_flags()
+    def pack(self) -> bytes:
+        """
+        Formats and encodes the header fields.
+        """
+
+        self.set_flags()
         self.packet = struct.pack(
             HEADER_FORMAT,
             self.src_port,  # source port
@@ -57,17 +81,16 @@ class TCPPacket:
             self.checksum,  # checksum
             self.urg_ptr,  # urgent pointer
         )
-        reserved = 0
-        self.pseudo_header = struct.pack(
+        self.pseudo_header = struct.pack(  # packs an IP pseudo header for calculating the checksum
             PSEUDO_HEADER_FORMAT,
             socket.inet_aton(self.src_host),  # source address
             socket.inet_aton(self.dst_host),  # destination address
-            reserved,
+            0,  # reserved
             socket.IPPROTO_TCP,  # protocol ID
-            len(self.packet) + len(self.payload),  # packet length
+            len(self.packet) + len(self.payload),  # pkt length
         )
-        self.checksum = csum(self.pseudo_header + self.packet + self.payload)
-        self.packet = (
+        self.checksum = calculate_checksum(self.pseudo_header + self.packet + self.payload)  # calculate checksum
+        self.packet = (  # inject calculated checksum in the right spot
             self.packet[:16]
             + struct.pack("!H", self.checksum)
             + self.packet[18:]
@@ -76,7 +99,15 @@ class TCPPacket:
         return self.packet
 
     @staticmethod
-    def unpack(ip_pkt, raw_tcp_pkt):
+    def unpack(ip_pkt: IPPacket, raw_tcp_pkt: bytes) -> str or None:
+        """
+        Decodes and parses incoming TCP packets.
+
+        :param ip_pkt: the IP pkt
+        :param raw_tcp_pkt: the encoded TCP pkt
+        :return: the decoded TCP pkt or None
+        """
+
         (
             src_port,
             dst_port,
@@ -88,14 +119,12 @@ class TCPPacket:
             checksum,
             urg,
         ) = struct.unpack(HEADER_FORMAT, raw_tcp_pkt[:20])
-
         fin = flag_byte & 1 == 1
         syn = flag_byte & 1 << 1 == 1 << 1
         rst = flag_byte & 1 << 2 == 1 << 2
         psh = flag_byte & 1 << 3 == 1 << 3
         ack = flag_byte & 1 << 4 == 1 << 4
         urg = flag_byte & 1 << 5 == 1 << 5
-
         tcp_pkt = TCPPacket(
             src_host=ip_pkt.src,
             src_port=src_port,
@@ -107,14 +136,12 @@ class TCPPacket:
         tcp_pkt.adv_wnd = adv_wnd
         tcp_pkt.checksum = checksum
         tcp_pkt.payload = raw_tcp_pkt[20:]
-
         tcp_pkt.fin = fin
         tcp_pkt.syn = syn
         tcp_pkt.rst = rst
         tcp_pkt.psh = psh
         tcp_pkt.ack = ack
         tcp_pkt.urg = urg
-
         pseudo_header = struct.pack(
             PSEUDO_HEADER_FORMAT,
             socket.inet_aton(ip_pkt.src),
@@ -123,13 +150,13 @@ class TCPPacket:
             socket.IPPROTO_TCP,
             len(raw_tcp_pkt),  # payload included
         )
-        zero_csum_raw_tcp_pkt = (
+        zero_csum_raw_tcp_pkt = (  # reset the incoming pkt's checksum to 0
                 raw_tcp_pkt[:16]
                 + struct.pack("!H", 0)
                 + raw_tcp_pkt[18:]
         )
-        check_checksum = csum(pseudo_header + zero_csum_raw_tcp_pkt)
-        if check_checksum == checksum:
+        check_checksum = calculate_checksum(pseudo_header + zero_csum_raw_tcp_pkt)  # calculate checksum
+        if check_checksum == checksum:  # compare locally calculated checksum with server's one
             return tcp_pkt
         else:
             return None
