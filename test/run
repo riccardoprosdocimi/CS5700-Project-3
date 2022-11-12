@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+rm *.php* *.log* *.html*
+
+echo "[rawhttpget] Downloading from http://david.choffnes.com/"
+sudo ../rawhttpget http://david.choffnes.com/
+echo "[rawhttpget] Downloading from http://david.choffnes.com/classes/cs5700f22/project3.php"
+sudo ../rawhttpget http://david.choffnes.com/classes/cs5700f22/project3.php
+echo "[rawhttpget] Downloading from http://david.choffnes.com/classes/cs5700f22/2MB.log"
+sudo ../rawhttpget http://david.choffnes.com/classes/cs5700f22/2MB.log
+echo "[rawhttpget] Downloading from http://david.choffnes.com/classes/cs5700f22/10MB.log"
+sudo ../rawhttpget http://david.choffnes.com/classes/cs5700f22/10MB.log
+echo "[rawhttpget] Downloading from http://david.choffnes.com/classes/cs5700f22/50MB.log"
+sudo ../rawhttpget http://david.choffnes.com/classes/cs5700f22/50MB.log
+
+echo
+echo
+echo "[wget] Downloading from http://david.choffnes.com/"
+wget -q http://david.choffnes.com/
+echo "[wget] Downloading from http://david.choffnes.com/classes/cs5700f22/project3.php"
+wget -q http://david.choffnes.com/classes/cs5700f22/project3.php
+echo "[wget] Downloading from http://david.choffnes.com/classes/cs5700f22/2MB.log"
+wget -q http://david.choffnes.com/classes/cs5700f22/2MB.log
+echo "[wget] Downloading from http://david.choffnes.com/classes/cs5700f22/10MB.log"
+wget -q http://david.choffnes.com/classes/cs5700f22/10MB.log
+echo "[wget] Downloading from http://david.choffnes.com/classes/cs5700f22/50MB.log"
+wget -q http://david.choffnes.com/classes/cs5700f22/50MB.log
+
+md5sum index.html*
+echo
+md5sum project3.php*
+echo
+md5sum 2MB.log*
+echo
+md5sum 10MB.log*
+echo
+md5sum 50MB.log*
