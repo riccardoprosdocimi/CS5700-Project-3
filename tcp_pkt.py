@@ -159,9 +159,4 @@ class TCPPacket:
         if check_checksum == checksum:  # compare locally calculated checksum with server's one
             return tcp_pkt
         else:
-            try:
-                print(tcp_pkt.payload.decode())
-                print(hex(check_checksum), hex(checksum), tcp_pkt.psh, tcp_pkt.ack)
-            except UnicodeDecodeError:
-                pass
             return None
