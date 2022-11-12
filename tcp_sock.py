@@ -73,6 +73,7 @@ class TCPSocket:
         syn_pkt.syn = True
         self.send_pkt(syn_pkt)
         recvd_pkt = self.recv_pkt()
+        self.ack_num = recvd_pkt.seq_num + 1
         if recvd_pkt and recvd_pkt.syn and recvd_pkt.ack:
             self.send_ack()
             return True
@@ -89,6 +90,10 @@ class TCPSocket:
         fin_ack_pkt.fin = True
         fin_ack_pkt.ack = True
         self.send_pkt(fin_ack_pkt)
+        recvd_pkt = self.recv_pkt()
+        self.ack_num = recvd_pkt.seq_num + 1
+        self.recv_sock.close()
+        self.send_sock.close()
 
     def send(self, pkt: str):
         """
@@ -98,8 +103,12 @@ class TCPSocket:
         """
 
         tcp_pkt = self.create_tcp_pkt(payload=pkt)
+        tcp_pkt.psh = True
         tcp_pkt.ack = True
         self.send_pkt(tcp_pkt=tcp_pkt)
+        recvd_pkt = self.recv_pkt()
+        if recvd_pkt.ack:
+            self.ack_num = recvd_pkt.seq_num
 
     def recv(self) -> bytearray:
         """
@@ -111,24 +120,25 @@ class TCPSocket:
         window = {}  # buffer
         while True:
             recvd_pkt = self.recv_pkt()
-            if recvd_pkt.ack:  # if it's an ACK pkt
+            if recvd_pkt.ack and recvd_pkt.seq_num not in window:  # if it's an ACK pkt
+                self.ack_num = recvd_pkt.seq_num + len(recvd_pkt.payload)
                 if self.cwnd < self.ssthresh:  # modified slow start
                     self.cwnd += 1
                 else:
                     self.cwnd += 1 / self.cwnd  # congestion avoidance
 
-                if (
-                    recvd_pkt.seq_num not in window and recvd_pkt.payload
-                ):  # check for duplicate packets & None payloads
+                if recvd_pkt.payload:  # check for duplicate packets & None payloads
                     window[
                         recvd_pkt.seq_num
                     ] = recvd_pkt.payload  # add to buffer -> key=seq_num value=payload
                     self.send_ack()  # send an ACK
+
                 if (
                     recvd_pkt.fin or recvd_pkt.rst
                 ):  # server wants to close the connection
                     self.close()  # close connection
                     break  # stop receiving
+
         sorted_seq_nums = sorted(
             window.keys()
         )  # sort out of order packets by the seq_num
@@ -169,7 +179,7 @@ class TCPSocket:
         """
         while True:
             try:
-                raw_pkt, _ = self.recv_sock.recvfrom(MAX_PACKET_SIZE)
+                raw_pkt = self.recv_sock.recv(MAX_PACKET_SIZE)
                 ip_pkt = IPPacket.unpack(raw_pkt=raw_pkt)
                 if ip_pkt and ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
@@ -181,7 +191,6 @@ class TCPSocket:
                             self.ssthresh = tcp_pkt.adv_wnd
                         self.counter = 3
                         self.seq_num = tcp_pkt.ack_num
-                        self.ack_num = tcp_pkt.seq_num + 1
                         return tcp_pkt
             except TimeoutError:
                 if self.counter > 0:  # 3 retransmission max

@@ -16,7 +16,7 @@ class Data:
 
         self.path = path
         self.host = host
-        self.http = "HTTP/1.1"
+        self.http = "HTTP/1.0"
         self.newline = '\r\n'
         self.request = ""
         self.message = None

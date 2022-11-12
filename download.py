@@ -33,6 +33,7 @@ def download(url: str):
         path = "/"  # add a trailing forward slash
     get_req = Data(dst_host, path)
     http_req = get_req.build_get_message()
+    print(http_req)
     tcp_socket.send(http_req)
     data = tcp_socket.recv()
     get_req.get_content_type(data)
