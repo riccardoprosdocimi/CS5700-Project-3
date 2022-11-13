@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-rm *.php* *.log* *.html*
+rm *.php* *.log* *.html* -f
 
 echo "[rawhttpget] Downloading from http://david.choffnes.com/"
 sudo ../rawhttpget http://david.choffnes.com/
