@@ -192,7 +192,7 @@ class TCPSocket:
                 if ip_pkt and ip_pkt.protocol == socket.IPPROTO_TCP:
                     tcp_pkt = TCPPacket.unpack(ip_pkt=ip_pkt, raw_tcp_pkt=ip_pkt.data)
                     if tcp_pkt and tcp_pkt.dst_port == self.src_port:
-                        if self.cwnd <= MAX_CWND:
+                        if self.cwnd < MAX_CWND:
                             self.cwnd += 1
 
                         self.dst_adv_wnd = tcp_pkt.adv_wnd
@@ -204,7 +204,6 @@ class TCPSocket:
                     self.send_pkt(self.last_pkt)  # retransmit the last pkt sent
                     self.counter -= 1  # 1 retransmission happened
                     # multiplicative decrease
-                    self.ssthresh = self.cwnd / 2
                     self.cwnd = 1
                 else:  # no response from the server for 3 straight times
                     print("Connection failed", file=sys.stderr)
