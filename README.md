@@ -16,7 +16,7 @@ README.
 
 Rohit, my teammate, worked on unpacking and parsing incoming packets, the three-way 
 handshake, the handling of the communication with the server (sending packets with the 
-correct flags and validating incoming packets), and the driver.
+correct flags and validating incoming packets, sliding and congestion windows), and the driver.
 
 We both worked on which instance variables and attributes each class should have had and 
 how to best deal with bit shifting and flag setting. Moreover, debugging was mostly a team 
