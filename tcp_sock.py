@@ -205,7 +205,7 @@ class TCPSocket:
                     self.counter -= 1  # 1 retransmission happened
                     # multiplicative decrease
                     self.cwnd = 1
-                else:  # no response from the server for 3 straight times
+                else:  # no response from the server for 3 straight times i.e. 3 minutes passed
                     print("Connection failed", file=sys.stderr)
                     self.close()
                     sys.exit(1)
