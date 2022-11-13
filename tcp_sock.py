@@ -43,7 +43,6 @@ class TCPSocket:
         self.last_pkt = None  # cache last pkt for retransmission
         self.counter = 3  # retransmit 3 times, then end connection
         # congestion control
-        self.cc_enabled = False  # congestion control is enabled after handshake
         self.cwnd = 1
         self.dst_adv_wnd = 1
         self.buf = bytearray()
@@ -79,7 +78,6 @@ class TCPSocket:
         self.ack_num = recvd_pkt.seq_num + 1
         if recvd_pkt and recvd_pkt.syn and recvd_pkt.ack:
             self.send_ack()
-            self.cc_enabled = True
             return True
         else:
             self.close()
@@ -105,14 +103,25 @@ class TCPSocket:
 
         :param pkt: the pkt
         """
+        self.buf += pkt.encode()
 
-        tcp_pkt = self.create_tcp_pkt(payload=pkt)
-        tcp_pkt.psh = True
-        tcp_pkt.ack = True
-        self.send_pkt(tcp_pkt=tcp_pkt)
-        recvd_pkt = self.recv_pkt()
-        if recvd_pkt.ack:
-            self.ack_num = recvd_pkt.seq_num
+        # Determine the actual size of the congestion window in bytes
+        wnd_start_offset = self.seq_num - self.start_seq_num - 1
+        wnd_size_bytes = MSS * min(self.dst_adv_wnd, self.cwnd)
+
+        # Sliding window
+        for offset in range(wnd_start_offset, len(self.buf), wnd_size_bytes):
+            payload = self.buf[offset : offset + wnd_size_bytes]
+
+            tcp_pkt = self.create_tcp_pkt()
+            tcp_pkt.payload = payload
+            tcp_pkt.psh = True
+            tcp_pkt.ack = True
+            
+            self.send_pkt(tcp_pkt=tcp_pkt)
+            recvd_pkt = self.recv_pkt()
+            if recvd_pkt.ack:
+                self.ack_num = recvd_pkt.seq_num
 
     def recv(self) -> bytearray:
         """
@@ -164,22 +173,8 @@ class TCPSocket:
 
         :param tcp_pkt: the TCP pkt
         """
-        if self.cc_enabled:
-            self.buf += tcp_pkt.pack()
-
-            wnd_start_offset = self.seq_num - self.start_seq_num - 1
-            wnd_size_bytes = MSS * min(self.dst_adv_wnd, self.cwnd)
-
-            for offset in range(wnd_start_offset, len(self.buf), wnd_size_bytes):
-                payload = self.buf[offset : offset + wnd_size_bytes]
-                print(offset, len(payload))
-                self.send_ip_pkt(payload=payload)
-        else:
-            self.send_ip_pkt(payload=tcp_pkt.pack())
-
-    def send_ip_pkt(self, payload: bytes):
-        self.last_pkt = payload
-        ip_pkt = IPPacket(src=self.src_host, dst=self.dst_host, data=payload)
+        self.last_pkt = tcp_pkt
+        ip_pkt = IPPacket(src=self.src_host, dst=self.dst_host, data=tcp_pkt.pack())
         ip_pkt_raw = ip_pkt.pack()
         bytes_sent = self.send_sock.sendto(ip_pkt_raw, (self.dst_host, self.dst_port))
         assert len(ip_pkt_raw) == bytes_sent
@@ -206,7 +201,7 @@ class TCPSocket:
                         return tcp_pkt
             except TimeoutError:
                 if self.counter > 0:  # 3 retransmission max
-                    self.send_ip_pkt(self.last_pkt)  # retransmit the last pkt sent
+                    self.send_pkt(self.last_pkt)  # retransmit the last pkt sent
                     self.counter -= 1  # 1 retransmission happened
                     # multiplicative decrease
                     self.ssthresh = self.cwnd / 2
