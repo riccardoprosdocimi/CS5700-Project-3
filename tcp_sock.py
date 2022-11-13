@@ -43,6 +43,7 @@ class TCPSocket:
         self.last_pkt = None  # cache last pkt for retransmission
         self.counter = 3  # retransmit 3 times, then end connection
         # congestion control
+        self.cc_enabled = False  # congestion control is enabled after handshake
         self.cwnd = 1
         self.dst_adv_wnd = 1
         self.buf = bytearray()
@@ -78,6 +79,7 @@ class TCPSocket:
         self.ack_num = recvd_pkt.seq_num + 1
         if recvd_pkt and recvd_pkt.syn and recvd_pkt.ack:
             self.send_ack()
+            self.cc_enabled = True
             return True
         else:
             self.close()
@@ -107,7 +109,7 @@ class TCPSocket:
         tcp_pkt = self.create_tcp_pkt(payload=pkt)
         tcp_pkt.psh = True
         tcp_pkt.ack = True
-        self.send_pkt(tcp_pkt=tcp_pkt, cc=True)
+        self.send_pkt(tcp_pkt=tcp_pkt)
         recvd_pkt = self.recv_pkt()
         if recvd_pkt.ack:
             self.ack_num = recvd_pkt.seq_num
@@ -156,28 +158,27 @@ class TCPSocket:
         ack_pkt.ack = True
         self.send_pkt(ack_pkt)
 
-    def send_pkt(self, tcp_pkt: TCPPacket, cc=False):
+    def send_pkt(self, tcp_pkt: TCPPacket):
         """
         Transmits a pkt.
 
         :param tcp_pkt: the TCP pkt
-        :param cc: apply congestion control or not
         """
-        if cc:
+        if self.cc_enabled:
             self.buf += tcp_pkt.pack()
 
-            wnd_start_offset = self.seq_num - self.start_seq_num
+            wnd_start_offset = self.seq_num - self.start_seq_num - 1
             wnd_size_bytes = MSS * min(self.dst_adv_wnd, self.cwnd)
 
             for offset in range(wnd_start_offset, len(self.buf), wnd_size_bytes):
                 payload = self.buf[offset : offset + wnd_size_bytes]
+                print(offset, len(payload))
                 self.send_ip_pkt(payload=payload)
         else:
-            self.last_pkt = tcp_pkt
             self.send_ip_pkt(payload=tcp_pkt.pack())
-        
 
     def send_ip_pkt(self, payload: bytes):
+        self.last_pkt = payload
         ip_pkt = IPPacket(src=self.src_host, dst=self.dst_host, data=payload)
         ip_pkt_raw = ip_pkt.pack()
         bytes_sent = self.send_sock.sendto(ip_pkt_raw, (self.dst_host, self.dst_port))
@@ -205,7 +206,7 @@ class TCPSocket:
                         return tcp_pkt
             except TimeoutError:
                 if self.counter > 0:  # 3 retransmission max
-                    self.send_pkt(self.last_pkt)  # retransmit the last pkt sent
+                    self.send_ip_pkt(self.last_pkt)  # retransmit the last pkt sent
                     self.counter -= 1  # 1 retransmission happened
                     # multiplicative decrease
                     self.ssthresh = self.cwnd / 2
